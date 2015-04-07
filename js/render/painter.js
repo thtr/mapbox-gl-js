@@ -210,7 +210,7 @@ GLPainter.prototype._prepareTile = function(tile) {
 
     // if z > maxzoom then the tile is actually a overscaled maxzoom tile,
     // so calculate the matrix the maxzoom tile would use.
-    //z = Math.min(z, this.maxzoom);
+    z = Math.min(z, tile.sourceMaxZoom);
 
     x += w * (1 << z);
     tile.calculateMatrices(z, x, y, this.transform, this);
