@@ -22,11 +22,11 @@ function drawSymbols(painter, layer, posMatrix, tile) {
     var gl = painter.gl;
     gl.disable(gl.STENCIL_TEST);
     gl.disable(gl.DEPTH_TEST);
+    if (elementGroups.icon.groups.length) {
+        drawSymbol(painter, layer, posMatrix, tile, elementGroups.icon, 'icon', elementGroups.sdfIcons);
+    }
     if (elementGroups.text.groups.length) {
         drawSymbol(painter, layer, posMatrix, tile, elementGroups.text, 'text', true);
-    }
-    if (elementGroups.icon.groups.length) {
-        //drawSymbol(painter, layer, posMatrix, tile, elementGroups.icon, 'icon', elementGroups.sdfIcons);
     }
 
     drawCollisionDebug(painter, layer, posMatrix, tile);
