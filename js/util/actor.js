@@ -25,10 +25,13 @@ Actor.prototype.receive = function(message) {
     var data = message.data,
         callback;
 
+    if (data.type === '<test>') return;
+
     if (data.type === '<response>') {
         callback = this.callbacks[data.id];
         delete this.callbacks[data.id];
         callback(data.error || null, data.data);
+
     } else if (typeof data.id !== 'undefined') {
         var id = data.id;
         this.parent[data.type](data.data, function(err, data, buffers) {
@@ -59,9 +62,16 @@ Actor.prototype.send = function(type, data, callback, buffers) {
  * @private
  */
 Actor.prototype.postMessage = function(message, transferList) {
-    try {
-        this.target.postMessage(message, transferList);
-    } catch (e) {
-        this.target.postMessage(message); // No support for transferList on IE
-    }
+    this.target.postMessage(message, transferList);
 };
+
+try {
+    var arr = new ArrayBuffer(16);
+    var target = typeof Worker !== 'undefined' ?
+        new Worker(URL.createObjectURL(new Blob([], {type: 'text/javascript'}))) : self;
+    target.postMessage({type: '<test>', data: arr}, [arr]);
+} catch (e) {
+    Actor.prototype.postMessage = function(message) {
+        this.target.postMessage(message);
+    };
+}
