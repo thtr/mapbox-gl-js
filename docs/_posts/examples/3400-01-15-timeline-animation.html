@@ -1,0 +1,75 @@
+---
+layout: example
+category: example
+title: Create a timeline animation
+description: Drag the range slider below to illustrate earthquakes by year.
+---
+<style>
+pre.label {
+    background: rgba(0,0,0,0.5);
+    position: absolute;
+    margin: 0;
+    top: 10px;
+    left: 10px;
+    padding: 5px 10px;
+    color: #fff;
+    font-size: 11px;
+    line-height: 18px;
+    border-radius: 3px;
+}
+
+.map-control {
+    position: absolute;
+    width: 100%;
+    bottom: 40px; 
+}
+
+.map-control .range-container {
+    padding: 0 10px;
+}
+
+.map-control .range-container input {
+    background-color: rgba(0,0,0,0.75);
+    display: inline-block;
+    width: 100%;
+    position: relative;
+    margin: 0;
+}
+</style>
+
+<div id='map'></div>
+<pre class='label'>Earthquakes</pre>
+<div class='map-control'>
+  <div class='range-container'>
+      <input type='range' min='0' step='1' max='1000' />
+  </div>
+</div>
+
+<script>
+var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/emerald-v8',
+    center: [0, 0],
+    zoom: 1
+});
+
+var style = {
+  "id": "earthquake-point",
+  "type": "circle",
+  "source": "earthquakes",
+  "filter": ["in", "$type", "Point"],
+  "paint": {
+      "circle-radius": 5, // Radius is derived by earthquake intensity
+      "circle-color": "#ff8584" // Color is derived by earthquake intensity
+  }
+};
+
+map.on('load', function() {
+    var source = new mapboxgl.GeoJSONSource({
+        data: '/mapbox-gl-js/assets/data/earthquakes.geojson'
+    });
+
+    map.addSource('earthquakes', source);
+    map.addLayer(style);
+});
+</script>
