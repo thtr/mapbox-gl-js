@@ -185,10 +185,7 @@ WorkerTile.prototype.parse = function(data, layers, actor, callback) {
         tile.status = 'done';
 
         if (tile.redoPlacementAfterDone) {
-            var result = tile.redoPlacement(tile.angle, tile.pitch).result;
-            buffers.glyphVertex = result.buffers.glyphVertex;
-            buffers.iconVertex = result.buffers.iconVertex;
-            buffers.collisionBoxVertex = result.buffers.collisionBoxVertex;
+            tile.redoPlacement(tile.angle, tile.pitch, null, buffers);
             tile.redoPlacementAfterDone = false;
         }
 
@@ -196,28 +193,36 @@ WorkerTile.prototype.parse = function(data, layers, actor, callback) {
             elementGroups: getElementGroups(buckets),
             buffers: buffers,
             extent: extent,
+            buckets: buckets.map(function(bucket) { return bucket.serialize(); }),
             bucketStats: stats
         }, getTransferables(buffers));
     }
 };
 
-WorkerTile.prototype.redoPlacement = function(angle, pitch, collisionDebug) {
-
+WorkerTile.prototype.redoPlacement = function(angle, pitch, collisionDebug, buffers) {
     if (this.status !== 'done') {
         this.redoPlacementAfterDone = true;
         this.angle = angle;
         return {};
     }
 
-    var buffers = {},
-        collisionTile = new CollisionTile(angle, pitch, this.extent);
+    buffers = buffers || {};
+    delete buffers.glyphVertex;
+    delete buffers.glyphElement;
+    delete buffers.iconVertex;
+    delete buffers.iconElement;
+    delete buffers.collisionBoxVertex;
+
+    var collisionTile = new CollisionTile(angle, pitch, this.extent);
 
     for (var i = this.symbolBuckets.length - 1; i >= 0; i--) {
         this.symbolBuckets[i].placeFeatures(collisionTile, buffers, collisionDebug);
     }
 
+    // TODO move the results formatting out into Worker
     return {
         result: {
+            buckets: this.symbolBuckets.map(function(bucket) { return bucket.serialize(); }),
             elementGroups: getElementGroups(this.symbolBuckets),
             buffers: buffers
         },
