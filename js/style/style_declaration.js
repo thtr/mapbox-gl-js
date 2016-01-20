@@ -1,7 +1,7 @@
 'use strict';
 
 var parseColor = require('./parse_color');
-var styleFunction = require('./style_function');
+var createStyleFunction = require('./style_function');
 
 module.exports = StyleDeclaration;
 
@@ -22,7 +22,7 @@ function StyleDeclaration(reference, value) {
         this.value = value;
     }
 
-    this.calculate = styleFunction.createBackwardsCompatible(reference, this.value);
+    this.calculate = createStyleFunction(reference, this.value);
 
     if (reference.function !== 'interpolated' && reference.transition) {
         this.calculate = transitioned(this.calculate);
@@ -30,7 +30,11 @@ function StyleDeclaration(reference, value) {
 }
 
 function transitioned(calculate) {
-    return function(z, zh, duration) {
+    return function(globalProperties, featureProperties) {
+        var z = globalProperties.$zoom;
+        var zh = globalProperties.$zoomHistory;
+        var duration = globalProperties.$duration;
+
         var fraction = z % 1;
         var t = Math.min((Date.now() - zh.lastIntegerZoomTime) / duration, 1);
         var fromScale = 1;
@@ -40,12 +44,12 @@ function transitioned(calculate) {
         if (z > zh.lastIntegerZoom) {
             mix = fraction + (1 - fraction) * t;
             fromScale *= 2;
-            from = calculate(z - 1);
-            to = calculate(z);
+            from = calculate({$zoom: z - 1}, featureProperties);
+            to = calculate({$zoom: z}, featureProperties);
         } else {
             mix = 1 - (1 - t) * fraction;
-            to = calculate(z);
-            from = calculate(z + 1);
+            to = calculate({$zoom: z}, featureProperties);
+            from = calculate({$zoom: z + 1}, featureProperties);
             fromScale /= 2;
         }
 

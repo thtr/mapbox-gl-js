@@ -78,12 +78,12 @@ StyleLayer.prototype = {
         );
     },
 
-    getLayoutValue: function(name, zoom, zoomHistory) {
+    getLayoutValue: function(name, globalProperties, featureProperties) {
         var specification = this._layoutSpecifications[name];
         var declaration = this._layoutDeclarations[name];
 
         if (declaration) {
-            return declaration.calculate(zoom, zoomHistory);
+            return declaration.calculate(globalProperties, featureProperties);
         } else {
             return specification.default;
         }
@@ -127,12 +127,12 @@ StyleLayer.prototype = {
         }
     },
 
-    getPaintValue: function(name, zoom, zoomHistory) {
+    getPaintValue: function(name, globalProperties, featureProperties) {
         var specification = this._paintSpecifications[name];
         var transition = this._paintTransitions[name];
 
         if (transition) {
-            return transition.at(zoom, zoomHistory);
+            return transition.calculate(globalProperties, featureProperties);
         } else if (specification.type === 'color' && specification.default) {
             return parseColor(specification.default);
         } else {
@@ -144,10 +144,10 @@ StyleLayer.prototype = {
         if (this.minzoom && zoom < this.minzoom) return true;
         if (this.maxzoom && zoom >= this.maxzoom) return true;
 
-        if (this.getLayoutValue('visibility') === 'none') return true;
+        if (this.getLayoutValue('visibility', {$zoom: zoom}) === 'none') return true;
 
         var opacityProperty = this.type + '-opacity';
-        if (this._paintSpecifications[opacityProperty] && this.getPaintValue(opacityProperty) === 0) return true;
+        if (this._paintSpecifications[opacityProperty] && this.getPaintValue(opacityProperty, {$zoom: zoom}) === 0) return true;
 
         return false;
     },
@@ -186,12 +186,12 @@ StyleLayer.prototype = {
     recalculate: function(zoom, zoomHistory) {
         this.paint = {};
         for (var name in this._paintSpecifications) {
-            this.paint[name] = this.getPaintValue(name, zoom, zoomHistory);
+            this.paint[name] = this.getPaintValue(name, {$zoom: zoom, $zoomHistory: zoomHistory});
         }
 
         this.layout = {};
         for (name in this._layoutSpecifications) {
-            this.layout[name] = this.getLayoutValue(name, zoom, zoomHistory);
+            this.layout[name] = this.getLayoutValue(name, {$zoom: zoom, $zoomHistory: zoomHistory});
         }
     },
 
