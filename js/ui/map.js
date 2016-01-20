@@ -417,6 +417,9 @@ util.extend(Map.prototype, /** @lends Map.prototype */{
         } else {
             this.style = new Style(style, this.animationLoop);
         }
+        // TODO remove
+        this.style.z = this.getZoom();
+        this.style.zoom = this.getZoom();
 
         this.style
             .on('load', this._onStyleLoad)

@@ -1,14 +1,22 @@
 'use strict';
 
 var mat3 = require('gl-matrix').mat3;
+var assert = require('assert');
 
 module.exports = drawBackground;
 
 function drawBackground(painter, layer, posMatrix) {
     var gl = painter.gl;
-    var color = layer.paint['background-color'];
-    var image = layer.paint['background-pattern'];
-    var opacity = layer.paint['background-opacity'];
+
+    var paint = layer.getPaintProperties({zoom: painter.style.zoom, zoomHistory: painter.style.zoomHistory});
+    var layout = layer.getLayoutProperties({zoom: painter.style.zoom, zoomHistory: painter.style.zoomHistory});
+
+    if (layout.visibility === 'none') return;
+    assert(layout.visibility === 'visible');
+
+    var color = paint['background-color'];
+    var image = paint['background-pattern'];
+    var opacity = paint['background-opacity'];
     var shader;
 
     var imagePosA = image ? painter.spriteAtlas.getPosition(image.from, true) : null;

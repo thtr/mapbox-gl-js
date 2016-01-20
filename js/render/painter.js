@@ -280,8 +280,9 @@ Painter.prototype.drawLayers = function(layers, matrix, tile) {
     for (var i = layers.length - 1; i >= 0; i--) {
         var layer = layers[i];
 
-        if (layer.hidden)
+        if (layer.isHidden({zoom: this.style.zoom, zoomHistory: this.style.zoomHistory})) {
             continue;
+        }
 
         draw[layer.type](this, layer, matrix, tile);
 

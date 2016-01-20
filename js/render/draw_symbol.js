@@ -13,8 +13,11 @@ function drawSymbols(painter, layer, posMatrix, tile) {
     var elementGroups = tile.elementGroups[layer.ref || layer.id];
     if (!elementGroups) return;
 
-    var drawAcrossEdges = !(layer.layout['text-allow-overlap'] || layer.layout['icon-allow-overlap'] ||
-        layer.layout['text-ignore-placement'] || layer.layout['icon-ignore-placement']);
+    var paint = layer.getPaintProperties(painter.style);
+    var layout = layer.getLayoutProperties(painter.style);
+
+    var drawAcrossEdges = !(layout['text-allow-overlap'] || layout['icon-allow-overlap'] ||
+        layout['text-ignore-placement'] || layout['icon-ignore-placement']);
 
     var gl = painter.gl;
 
@@ -28,10 +31,10 @@ function drawSymbols(painter, layer, posMatrix, tile) {
     }
 
     if (elementGroups.glyph.groups.length) {
-        drawSymbol(painter, layer, posMatrix, tile, elementGroups.glyph, 'text', true);
+        drawSymbol(painter, paint, layout, layer, posMatrix, tile, elementGroups.glyph, 'text', true);
     }
     if (elementGroups.icon.groups.length) {
-        drawSymbol(painter, layer, posMatrix, tile, elementGroups.icon, 'icon', elementGroups.sdfIcons);
+        drawSymbol(painter, paint, layout, layer, posMatrix, tile, elementGroups.icon, 'icon', elementGroups.sdfIcons);
     }
 
     drawCollisionDebug(painter, layer, posMatrix, tile);
@@ -46,13 +49,13 @@ var defaultSizes = {
     text: 24
 };
 
-function drawSymbol(painter, layer, posMatrix, tile, elementGroups, prefix, sdf) {
+function drawSymbol(painter, paint, layout, layer, posMatrix, tile, elementGroups, prefix, sdf) {
     var gl = painter.gl;
 
-    posMatrix = painter.translateMatrix(posMatrix, tile, layer.paint[prefix + '-translate'], layer.paint[prefix + '-translate-anchor']);
+    posMatrix = painter.translateMatrix(posMatrix, tile, paint[prefix + '-translate'], paint[prefix + '-translate-anchor']);
 
     var tr = painter.transform;
-    var alignedWithMap = layer.layout[prefix + '-rotation-alignment'] === 'map';
+    var alignedWithMap = layout[prefix + '-rotation-alignment'] === 'map';
     var skewed = alignedWithMap;
     var exMatrix, s, gammaScale;
 
@@ -67,7 +70,7 @@ function drawSymbol(painter, layer, posMatrix, tile, elementGroups, prefix, sdf)
     }
     mat4.scale(exMatrix, exMatrix, [s, s, 1]);
 
-    var fontSize = layer.paint[prefix + '-size'];
+    var fontSize = layout[prefix + '-size'];
     var fontScale = fontSize / defaultSizes[prefix];
     mat4.scale(exMatrix, exMatrix, [ fontScale, fontScale, 1 ]);
 
@@ -133,7 +136,7 @@ function drawSymbol(painter, layer, posMatrix, tile, elementGroups, prefix, sdf)
         var gamma = 0.105 * defaultSizes[prefix] / fontSize / browser.devicePixelRatio;
 
         gl.uniform1f(shader.u_gamma, gamma * gammaScale);
-        gl.uniform4fv(shader.u_color, layer.paint[prefix + '-color']);
+        gl.uniform4fv(shader.u_color, paint[prefix + '-color']);
         gl.uniform1f(shader.u_buffer, (256 - 64) / 256);
 
         for (var i = 0; i < elementGroups.groups.length; i++) {
@@ -147,11 +150,11 @@ function drawSymbol(painter, layer, posMatrix, tile, elementGroups, prefix, sdf)
             gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, elementOffset);
         }
 
-        if (layer.paint[prefix + '-halo-width']) {
+        if (paint[prefix + '-halo-width']) {
             // Draw halo underneath the text.
-            gl.uniform1f(shader.u_gamma, (layer.paint[prefix + '-halo-blur'] * blurOffset / fontScale / sdfPx + gamma) * gammaScale);
-            gl.uniform4fv(shader.u_color, layer.paint[prefix + '-halo-color']);
-            gl.uniform1f(shader.u_buffer, (haloOffset - layer.paint[prefix + '-halo-width'] / fontScale) / sdfPx);
+            gl.uniform1f(shader.u_gamma, (paint[prefix + '-halo-blur'] * blurOffset / fontScale / sdfPx + gamma) * gammaScale);
+            gl.uniform4fv(shader.u_color, paint[prefix + '-halo-color']);
+            gl.uniform1f(shader.u_buffer, (haloOffset - paint[prefix + '-halo-width'] / fontScale) / sdfPx);
 
             for (var j = 0; j < elementGroups.groups.length; j++) {
                 group = elementGroups.groups[j];
@@ -165,7 +168,7 @@ function drawSymbol(painter, layer, posMatrix, tile, elementGroups, prefix, sdf)
             }
         }
     } else {
-        gl.uniform1f(shader.u_opacity, layer.paint['icon-opacity']);
+        gl.uniform1f(shader.u_opacity, paint['icon-opacity']);
         for (var k = 0; k < elementGroups.groups.length; k++) {
             group = elementGroups.groups[k];
             offset = group.vertexStartIndex * vertex.itemSize;

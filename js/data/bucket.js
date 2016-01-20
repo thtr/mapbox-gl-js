@@ -2,8 +2,7 @@
 
 var featureFilter = require('feature-filter');
 
-var StyleDeclarationSet = require('../style/style_declaration_set');
-var LayoutProperties = require('../style/layout_properties');
+var Layer = require('../style/style_layer');
 var ElementGroups = require('./element_groups');
 var Buffer = require('./buffer');
 
@@ -56,6 +55,7 @@ function Bucket(options) {
     this.type = this.layer.type;
     this.features = [];
     this.id = this.layer.id;
+    this.source = this.layer.source;
     this['source-layer'] = this.layer['source-layer'];
     this.interactive = this.layer.interactive;
     this.minZoom = this.layer.minzoom;
@@ -164,30 +164,27 @@ Bucket.prototype.getBufferName = function(shaderName, type) {
 };
 
 function createLayoutProperties(layer, zoom) {
-    var values = new StyleDeclarationSet('layout', layer.type, layer.layout, {}).values();
     var fakeZoomHistory = { lastIntegerZoom: Infinity, lastIntegerZoomTime: 0, lastZoom: 0 };
 
-    var layout = {};
-    for (var k in values) {
-        layout[k] = values[k].calculate(zoom, fakeZoomHistory);
-    }
+    // if (layer.type === 'symbol') {
+    //     // To reduce the number of labels that jump around when zooming we need
+    //     // to use a text-size value that is the same for all zoom levels.
+    //     // This calculates text-size at a high zoom level so that all tiles can
+    //     // use the same value when calculating anchor positions.
+    //     if (values['text-size']) {
+    //         layout['text-max-size'] = values['text-size'].calculate(18, fakeZoomHistory);
+    //         layout['text-size'] = values['text-size'].calculate(zoom + 1, fakeZoomHistory);
+    //     }
+    //     if (values['icon-size']) {
+    //         layout['icon-max-size'] = values['icon-size'].calculate(18, fakeZoomHistory);
+    //         layout['icon-size'] = values['icon-size'].calculate(zoom + 1, fakeZoomHistory);
+    //     }
+    // }
 
-    if (layer.type === 'symbol') {
-        // To reduce the number of labels that jump around when zooming we need
-        // to use a text-size value that is the same for all zoom levels.
-        // This calculates text-size at a high zoom level so that all tiles can
-        // use the same value when calculating anchor positions.
-        if (values['text-size']) {
-            layout['text-max-size'] = values['text-size'].calculate(18, fakeZoomHistory);
-            layout['text-size'] = values['text-size'].calculate(zoom + 1, fakeZoomHistory);
-        }
-        if (values['icon-size']) {
-            layout['icon-max-size'] = values['icon-size'].calculate(18, fakeZoomHistory);
-            layout['icon-size'] = values['icon-size'].calculate(zoom + 1, fakeZoomHistory);
-        }
-    }
-
-    return new LayoutProperties[layer.type](layout);
+    return layer.getLayoutProperties({
+        zoom: zoom,
+        zoomHistory: fakeZoomHistory
+    });
 }
 
 var createVertexAddMethodCache = {};

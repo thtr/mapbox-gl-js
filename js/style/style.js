@@ -15,6 +15,7 @@ var browser = require('../util/browser');
 var Dispatcher = require('../util/dispatcher');
 var AnimationLoop = require('./animation_loop');
 var validate = require('mapbox-gl-style-spec/lib/validate/latest');
+var reference = require('./reference');
 
 module.exports = Style;
 
@@ -55,6 +56,11 @@ function Style(stylesheet, animationLoop) {
 
         this._loaded = true;
         this.stylesheet = stylesheet;
+
+        this._transitionOptions = util.extend({
+            duration: reference.transition.duration.default,
+            delay: reference.transition.delay.default
+        }, this.stylesheet.transition || {});
 
         var sources = stylesheet.sources;
         for (var id in sources) {
@@ -126,26 +132,31 @@ Style.prototype = util.inherit(Evented, {
     },
 
     _resolve: function() {
-        var id, layer;
-
         this._layers = {};
-        this._order  = [];
+        this._order  = this.stylesheet.layers.map(function(layer) { return layer.id; });
 
+        // Create all layers without refs
+        var layer;
         for (var i = 0; i < this.stylesheet.layers.length; i++) {
-            layer = new StyleLayer(this.stylesheet.layers[i]);
-            this._layers[layer.id] = layer;
-            this._order.push(layer.id);
+            layer = this.stylesheet.layers[i];
+            if (!layer.ref) {
+                this._layers[layer.id] = StyleLayer.create({
+                    layer: layer,
+                    transitionOptions: this._transitionOptions
+                });
+            }
         }
 
-        // Resolve layout properties.
-        for (id in this._layers) {
-            this._layers[id].resolveLayout();
-        }
-
-        // Resolve reference and paint properties.
-        for (id in this._layers) {
-            this._layers[id].resolveReference(this._layers);
-            this._layers[id].resolvePaint();
+        // Create all layers with refs
+        for (var j = 0; j < this.stylesheet.layers.length; j++) {
+            layer = this.stylesheet.layers[j];
+            if (layer.ref) {
+                this._layers[layer.id] = StyleLayer.create({
+                    layer: layer,
+                    refLayer: this._layers[layer.ref],
+                    transitionOptions: this._transitionOptions
+                });
+            }
         }
 
         this._groupLayers();
@@ -175,23 +186,24 @@ Style.prototype = util.inherit(Evented, {
         var ordered = [];
 
         for (var id in this._layers) {
-            ordered.push(this._layers[id].json());
+            ordered.push(this._layers[id].serialize());
         }
 
         this.dispatcher.broadcast('set layers', ordered);
     },
 
+    // TODO deprecate
     _cascade: function(classes, options) {
         if (!this._loaded) return;
 
-        options = options || {
-            transition: true
-        };
+        options = options || { transition: true };
 
         for (var id in this._layers) {
-            this._layers[id].cascade(classes, options,
-                this.stylesheet.transition || {},
-                this.animationLoop);
+            this._layers[id].setClasses(
+                classes,
+                options,
+                this.animationLoop
+            );
         }
 
         this.fire('change');
@@ -207,7 +219,7 @@ Style.prototype = util.inherit(Evented, {
         for (id in this._layers) {
             var layer = this._layers[id];
 
-            if (layer.recalculate(z, this.zoomHistory) && layer.source) {
+            if (!layer.isHidden({zoom: z, zoomHistory: this.zoomHistory}) && layer.source) {
                 this.sources[layer.source].used = true;
             }
         }
@@ -218,6 +230,7 @@ Style.prototype = util.inherit(Evented, {
         }
 
         this.z = z;
+        this.zoom = z;
         this.fire('zoom');
     },
 
@@ -340,10 +353,8 @@ Style.prototype = util.inherit(Evented, {
      */
     getReferentLayer: function(id) {
         var layer = this.getLayer(id);
-        if (layer.ref) {
-            layer = this.getLayer(layer.ref);
-        }
-        return layer;
+        if (!layer) return null;
+        return layer.refLayer || layer;
     },
 
     setFilter: function(layer, filter) {
@@ -380,11 +391,11 @@ Style.prototype = util.inherit(Evented, {
      * @private
      */
     getLayoutProperty: function(layer, name) {
-        return this.getReferentLayer(layer).getLayoutProperty(name);
+        return this.getReferentLayer(layer).getLayoutProperty(name,  {zoom: this.z, zoomHistory: this.zoomHistory});
     },
 
-    getPaintProperty: function(layer, name, klass) {
-        return this.getLayer(layer).getPaintProperty(name, klass);
+    getPaintProperty: function(layer, name) {
+        return this.getLayer(layer).getPaintProperty(name, {zoom: this.z, zoomHistory: this.zoomHistory});
     },
 
     featuresAt: function(coord, params, callback) {

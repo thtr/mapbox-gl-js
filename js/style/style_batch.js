@@ -1,7 +1,7 @@
 'use strict';
 
 var Source = require('../source/source');
-var StyleLayer = require('./style_layer');
+var Layer = require('./style_layer');
 
 function styleBatch(style, work) {
     if (!style._loaded) {
@@ -46,15 +46,16 @@ styleBatch.prototype = {
         if (this._style._layers[layer.id] !== undefined) {
             throw new Error('There is already a layer with this ID');
         }
-        if (!(layer instanceof StyleLayer)) {
-            layer = new StyleLayer(layer);
-        }
+
+        layer = Layer.create({
+            layer: layer,
+            refLayer: this._style.getReferentLayer(layer.id),
+            transitionOptions: this._style._transitionOptions
+        });
+
         this._style._validateLayer(layer);
         this._style._layers[layer.id] = layer;
         this._style._order.splice(before ? this._style._order.indexOf(before) : Infinity, 0, layer.id);
-        layer.resolveLayout();
-        layer.resolveReference(this._style._layers);
-        layer.resolvePaint();
 
         this._groupLayers = true;
         this._broadcastLayers = true;

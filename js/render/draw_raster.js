@@ -12,15 +12,17 @@ function drawRaster(painter, layer, posMatrix, tile) {
     var shader = painter.rasterShader;
     gl.switchShader(shader, posMatrix);
 
+    var paint = layer.getPaintProperties({zoom: painter.style.z, zoomHistory: painter.style.zoomHistory});
+
     // color parameters
-    gl.uniform1f(shader.u_brightness_low, layer.paint['raster-brightness-min']);
-    gl.uniform1f(shader.u_brightness_high, layer.paint['raster-brightness-max']);
-    gl.uniform1f(shader.u_saturation_factor, saturationFactor(layer.paint['raster-saturation']));
-    gl.uniform1f(shader.u_contrast_factor, contrastFactor(layer.paint['raster-contrast']));
-    gl.uniform3fv(shader.u_spin_weights, spinWeights(layer.paint['raster-hue-rotate']));
+    gl.uniform1f(shader.u_brightness_low, paint['raster-brightness-min']);
+    gl.uniform1f(shader.u_brightness_high, paint['raster-brightness-max']);
+    gl.uniform1f(shader.u_saturation_factor, saturationFactor(paint['raster-saturation']));
+    gl.uniform1f(shader.u_contrast_factor, contrastFactor(paint['raster-contrast']));
+    gl.uniform3fv(shader.u_spin_weights, spinWeights(paint['raster-hue-rotate']));
 
     var parentTile = tile.source && tile.source._pyramid.findLoadedParent(tile.coord, 0, {}),
-        opacities = getOpacities(tile, parentTile, layer, painter.transform);
+        opacities = getOpacities(tile, parentTile, paint, painter.transform);
 
     var parentScaleBy, parentTL;
 
@@ -78,13 +80,13 @@ function saturationFactor(saturation) {
         -saturation;
 }
 
-function getOpacities(tile, parentTile, layer, transform) {
+function getOpacities(tile, parentTile, paint, transform) {
     var opacity = [1, 0];
 
     if (tile.source) {
         var now = new Date().getTime();
 
-        var fadeDuration = layer.paint['raster-fade-duration'];
+        var fadeDuration = paint['raster-fade-duration'];
         var sinceTile = (now - tile.timeAdded) / fadeDuration;
         var sinceParent = parentTile ? (now - parentTile.timeAdded) / fadeDuration : -1;
 
@@ -102,7 +104,7 @@ function getOpacities(tile, parentTile, layer, transform) {
         }
     }
 
-    var op = layer.paint['raster-opacity'];
+    var op = paint['raster-opacity'];
     opacity[0] *= op;
     opacity[1] *= op;
 

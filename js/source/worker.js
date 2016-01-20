@@ -6,6 +6,7 @@ var util = require('../util/util');
 var ajax = require('../util/ajax');
 var vt = require('vector-tile');
 var Protobuf = require('pbf');
+var Layer = require('../style/style_layer');
 
 var geojsonvt = require('geojson-vt');
 var GeoJSONWrapper = require('./geojson_wrapper');
@@ -25,8 +26,10 @@ function Worker(self) {
 }
 
 util.extend(Worker.prototype, {
-    'set layers': function(layers) {
-        this.layers = layers;
+    'set layers': function(serializedLayers) {
+        this.layers = serializedLayers.map(function(serializedLayer) {
+            return Layer.create(serializedLayer);
+        });
     },
 
     'load tile': function(params, callback) {

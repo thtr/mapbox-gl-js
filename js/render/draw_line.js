@@ -21,22 +21,25 @@ module.exports = function drawLine(painter, layer, posMatrix, tile) {
 
     var gl = painter.gl;
 
+    var paint = layer.getPaintProperties(painter.style);
+    var layout = layer.getLayoutProperties(painter.style);
+
     // don't draw zero-width lines
-    if (layer.paint['line-width'] <= 0) return;
+    if (paint['line-width'] <= 0) return;
 
     // the distance over which the line edge fades out.
     // Retina devices need a smaller distance to avoid aliasing.
     var antialiasing = 1 / browser.devicePixelRatio;
 
-    var blur = layer.paint['line-blur'] + antialiasing;
-    var edgeWidth = layer.paint['line-width'] / 2;
+    var blur = paint['line-blur'] + antialiasing;
+    var edgeWidth = paint['line-width'] / 2;
     var inset = -1;
     var offset = 0;
     var shift = 0;
 
-    if (layer.paint['line-gap-width'] > 0) {
-        inset = layer.paint['line-gap-width'] / 2 + antialiasing * 0.5;
-        edgeWidth = layer.paint['line-width'];
+    if (paint['line-gap-width'] > 0) {
+        inset = paint['line-gap-width'] / 2 + antialiasing * 0.5;
+        edgeWidth = paint['line-width'];
 
         // shift outer lines half a pixel towards the middle to eliminate the crack
         offset = inset - antialiasing / 2;
@@ -44,12 +47,11 @@ module.exports = function drawLine(painter, layer, posMatrix, tile) {
 
     var outset = offset + edgeWidth + antialiasing / 2 + shift;
 
-    var color = layer.paint['line-color'];
+    var color = paint['line-color'];
     var ratio = painter.transform.scale / (1 << tile.coord.z) / (tile.tileExtent / tile.tileSize);
-    var vtxMatrix = painter.translateMatrix(posMatrix, tile, layer.paint['line-translate'], layer.paint['line-translate-anchor']);
+    var vtxMatrix = painter.translateMatrix(posMatrix, tile, paint['line-translate'], paint['line-translate-anchor']);
 
     var tr = painter.transform;
-
 
     var antialiasingMatrix = mat2.create();
     mat2.scale(antialiasingMatrix, antialiasingMatrix, [1, Math.cos(tr._pitch)]);
@@ -67,8 +69,8 @@ module.exports = function drawLine(painter, layer, posMatrix, tile) {
     var shader;
 
 
-    var dasharray = layer.paint['line-dasharray'];
-    var image = layer.paint['line-pattern'];
+    var dasharray = paint['line-dasharray'];
+    var image = paint['line-pattern'];
 
     if (dasharray) {
 
@@ -80,8 +82,8 @@ module.exports = function drawLine(painter, layer, posMatrix, tile) {
         gl.uniform1f(shader.u_blur, blur);
         gl.uniform4fv(shader.u_color, color);
 
-        var posA = painter.lineAtlas.getDash(dasharray.from, layer.layout['line-cap'] === 'round');
-        var posB = painter.lineAtlas.getDash(dasharray.to, layer.layout['line-cap'] === 'round');
+        var posA = painter.lineAtlas.getDash(dasharray.from, layout['line-cap'] === 'round');
+        var posB = painter.lineAtlas.getDash(dasharray.to, layout['line-cap'] === 'round');
         painter.lineAtlas.bind(gl);
 
         var patternratio = Math.pow(2, Math.floor(Math.log(painter.transform.scale) / Math.LN2) - tile.coord.z) / 8 * overscaling;
@@ -124,7 +126,7 @@ module.exports = function drawLine(painter, layer, posMatrix, tile) {
         gl.uniform2fv(shader.u_pattern_tl_b, imagePosB.tl);
         gl.uniform2fv(shader.u_pattern_br_b, imagePosB.br);
         gl.uniform1f(shader.u_fade, image.t);
-        gl.uniform1f(shader.u_opacity, layer.paint['line-opacity']);
+        gl.uniform1f(shader.u_opacity, paint['line-opacity']);
 
         gl.uniform1f(shader.u_extra, extra);
         gl.uniformMatrix2fv(shader.u_antialiasingmatrix, false, antialiasingMatrix);

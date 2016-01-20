@@ -37,12 +37,9 @@ WorkerTile.prototype.parse = function(data, layers, actor, callback) {
     for (i = 0; i < layers.length; i++) {
         layer = layers[i];
 
-        if (layer.source !== this.source ||
-                layer.ref ||
-                layer.minzoom && this.zoom < layer.minzoom ||
-                layer.maxzoom && this.zoom >= layer.maxzoom ||
-                layer.layout.visibility === 'none')
+        if (layer.source !== this.source || layer.ref || layer.isHidden({zoom: this.zoom})) {
             continue;
+        }
 
         bucket = Bucket.create({
             layer: layer,
@@ -56,7 +53,7 @@ WorkerTile.prototype.parse = function(data, layers, actor, callback) {
         bucketsById[layer.id] = bucket;
 
         if (data.layers) { // vectortile
-            sourceLayerId = layer['source-layer'];
+            sourceLayerId = layer.sourceLayer;
             bucketsBySourceLayer[sourceLayerId] = bucketsBySourceLayer[sourceLayerId] || {};
             bucketsBySourceLayer[sourceLayerId][layer.id] = bucket;
         }
@@ -88,8 +85,9 @@ WorkerTile.prototype.parse = function(data, layers, actor, callback) {
         for (var i = 0; i < layer.length; i++) {
             var feature = layer.feature(i);
             for (var id in buckets) {
-                if (buckets[id].filter(feature))
+                if (buckets[id].filter(feature)) {
                     buckets[id].features.push(feature);
+                }
             }
         }
     }

@@ -11,10 +11,12 @@ function drawFill(painter, layer, posMatrix, tile) {
     if (!tile.elementGroups[layer.ref || layer.id]) return;
     var elementGroups = tile.elementGroups[layer.ref || layer.id].fill;
 
-    var gl = painter.gl;
-    var translatedPosMatrix = painter.translateMatrix(posMatrix, tile, layer.paint['fill-translate'], layer.paint['fill-translate-anchor']);
+    var paint = layer.getPaintProperties(painter.style);
 
-    var color = layer.paint['fill-color'];
+    var gl = painter.gl;
+    var translatedPosMatrix = painter.translateMatrix(posMatrix, tile, paint['fill-translate'], paint['fill-translate-anchor']);
+
+    var color = paint['fill-color'];
 
     var vertex, elements, group, count;
 
@@ -71,11 +73,11 @@ function drawFill(painter, layer, posMatrix, tile) {
     gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
     gl.stencilMask(0x0);
 
-    var strokeColor = layer.paint['fill-outline-color'];
+    var strokeColor = paint['fill-outline-color'];
 
     // Because we're drawing top-to-bottom, and we update the stencil mask
     // below, we have to draw the outline first (!)
-    if (layer.paint['fill-antialias'] === true && !(layer.paint['fill-pattern'] && !strokeColor)) {
+    if (paint['fill-antialias'] === true && !(paint['fill-pattern'] && !strokeColor)) {
         gl.switchShader(painter.outlineShader, translatedPosMatrix);
         gl.lineWidth(2 * browser.devicePixelRatio);
 
@@ -112,8 +114,8 @@ function drawFill(painter, layer, posMatrix, tile) {
         }
     }
 
-    var image = layer.paint['fill-pattern'];
-    var opacity = layer.paint['fill-opacity'] || 1;
+    var image = paint['fill-pattern'];
+    var opacity = paint['fill-opacity'] || 1;
     var shader;
 
     if (image) {
