@@ -1,0 +1,105 @@
+---
+layout: example
+category: example
+title: Create and style marker clusters
+description: Add a new source with cluster option.
+---
+
+<div id='map'></div>
+
+<script>
+var map = new mapboxgl.Map({
+    container: 'map', // container id
+    style: 'mapbox://styles/mapbox/streets-v8', //stylesheet location
+    center: [-103.59179687498357, 40.66995747013945], // starting position
+    zoom: 3, // starting zoom
+});
+
+map.on('style.load', function(){
+    // Later on, we'll add layers to differentiate our marker clusters
+    // by the number of markers they represent. We'll store the breaks
+    // between each category here so we can change them easily. 
+    var highCount = 75,
+        lowCount = 15;
+
+    // Add a new source from our GeoJSON data and set the 
+    // 'cluster' option to true. 
+    map.addSource("earthquakes", {
+        type: "geojson",
+        data: "/mapbox-gl-js/assets/earthquakes.geojson",
+        cluster: true, 
+        clusterMaxZoom: 14, // Max zoom to cluster points on
+        clusterRadius: 400 // Radius of each cluster when clustering points (defaults to 400)
+    });
+    
+    // Now we use the earthquakes source to create a few layers:
+    // One for single markers, three for each cluster category, 
+    // and one for our cluster labels.
+    map.addLayer({
+        "id": "non-cluster-markers",
+        "type": "symbol",
+        "source": "earthquakes",
+        "layout": {
+            "icon-image": "marker-15"
+        },
+        "paint": {},
+        "interactive": true
+    });
+
+    // Cluster categories
+    map.addLayer({
+        "id": "cluster-low",
+        "type": "circle",
+        "source": "earthquakes",
+        // Set a filter the 'low' category
+        "filter": ["<", "point_count", lowCount],
+        "layout": {},
+        "paint": {
+            "circle-color": "#1a9641",
+            "circle-radius": 18
+        },
+        "interactive": true
+    });
+    map.addLayer({
+        "id": "cluster-medium",
+        "type": "circle",
+        "source": "earthquakes",
+        "filter": [
+            "all",
+            [">", "point_count", lowCount],
+            ["<=", "point_count", highCount]
+        ],
+        "layout": {},
+        "paint": {
+            "circle-color": "#ffffbf",
+            "circle-radius": 18
+        },
+        "interactive": true
+    });
+    map.addLayer({
+        "id": "cluster-high",
+        "type": "circle",
+        "source": "earthquakes",
+        "filter": [">", "point_count", highCount],
+        "layout": {},
+        "paint": {
+            "circle-color": "#fc8d59",
+            "circle-radius": 18
+        },
+        "interactive": true
+    });
+    
+    // Finally, add a layer for the clusters' count labels
+    map.addLayer({
+        "id": "cluster-count",
+        "type": "symbol",
+        "source": "earthquakes",
+        "layout": {
+            "text-field": "{point_count}",
+            "text-size": 12
+        },
+        "paint": {},
+        "interactive": true
+    });
+});
+</script>
