@@ -10,7 +10,7 @@ description: Use Mapbox GL JS' built-in functions to visualize point data as mar
 <script>
 var map = new mapboxgl.Map({
     container: 'map', 
-    style: 'mapbox://styles/mapbox/streets-v8', 
+    style: 'mapbox://styles/mapbox/dark-v8', 
     center: [-103.59179687498357, 40.66995747013945], 
     zoom: 3, 
 });
@@ -44,9 +44,9 @@ map.on('style.load', function(){
     // Display the earthquake data in three layers, each filtered to a range of
     // count values. Each range gets a different fill color.
     var layers = [
-        [150, '#fc8d59'],
-        [20, '#ffffbf'],
-        [0, '#1a9641']
+        [150, '#f28cb1'],
+        [20, '#f1f075'],
+        [0, '#51bbd6']
     ];
 
     layers.forEach(function (layer, i) {
@@ -73,6 +73,10 @@ map.on('style.load', function(){
         "source": "earthquakes",
         "layout": {
             "text-field": "{point_count}",
+            "text-font": [
+                    "DIN Offc Pro Medium",
+                    "Arial Unicode MS Bold"
+                ],
             "text-size": 12
         }
     });
