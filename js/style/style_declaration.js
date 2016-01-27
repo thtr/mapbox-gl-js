@@ -23,6 +23,8 @@ function StyleDeclaration(reference, value) {
     }
 
     this.calculate = createStyleFunction(reference, this.value);
+    this.isFeatureConstant = this.calculate.isFeatureConstant;
+    this.isGlobalConstant = this.calculate.isGlobalConstant;
 
     if (reference.function !== 'interpolated' && reference.transition) {
         this.calculate = transitioned(this.calculate);

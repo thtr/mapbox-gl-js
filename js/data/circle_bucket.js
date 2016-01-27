@@ -23,7 +23,7 @@ CircleBucket.prototype.shaders = {
         vertexBuffer: true,
         elementBuffer: true,
 
-        attributeArgs: ['x', 'y', 'extrudeX', 'extrudeY'],
+        attributeArgs: ['globalProperties', 'featureProperties', 'x', 'y', 'extrudeX', 'extrudeY'],
 
         attributes: [{
             name: 'pos',
@@ -39,11 +39,17 @@ CircleBucket.prototype.shaders = {
             type: Bucket.AttributeType.UNSIGNED_BYTE,
             value: (
                 'this._premultiplyColor(' +
-                    'this.layer.paint["circle-color"],' +
-                    'this.layer.paint["circle-opacity"]' +
+                    'this.layer.getPaintValue("circle-color", globalProperties, featureProperties),' +
+                    'this.layer.getPaintValue("circle-opacity", globalProperties, featureProperties)' +
                 ')'
             ),
-            multiplier: 255
+            multiplier: 255,
+            isDisabled: function() {
+                return (
+                    this.layer.isPaintValueFeatureConstant("circle-color") &&
+                    this.layer.isPaintValueFeatureConstant('circle-opacity')
+                );
+            }
         }]
     }
 };
@@ -69,10 +75,10 @@ CircleBucket.prototype.addFeature = function(feature) {
         // │ 0     1 │
         // └─────────┘
 
-        var index = this.addCircleVertex(x, y, -1, -1) - group.vertexStartIndex;
-        this.addCircleVertex(x, y, 1, -1);
-        this.addCircleVertex(x, y, 1, 1);
-        this.addCircleVertex(x, y, -1, 1);
+        var index = this.addCircleVertex({$zoom: this.zoom}, feature.properties, x, y, -1, -1) - group.vertexStartIndex;
+        this.addCircleVertex({$zoom: this.zoom}, feature.properties, x, y, 1, -1);
+        this.addCircleVertex({$zoom: this.zoom}, feature.properties, x, y, 1, 1);
+        this.addCircleVertex({$zoom: this.zoom}, feature.properties, x, y, -1, 1);
         group.vertexLength += 4;
 
         this.addCircleElement(index, index + 1, index + 2);

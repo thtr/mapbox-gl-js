@@ -140,6 +140,16 @@ StyleLayer.prototype = {
         }
     },
 
+    isPaintValueFeatureConstant: function(name) {
+        var transition = this._paintTransitions[name];
+
+        if (transition) {
+            return transition.declaration.isFeatureConstant;
+        } else {
+            return true;
+        }
+    },
+
     isHidden: function(zoom) {
         if (this.minzoom && zoom < this.minzoom) return true;
         if (this.maxzoom && zoom >= this.maxzoom) return true;
@@ -186,7 +196,9 @@ StyleLayer.prototype = {
     recalculate: function(zoom, zoomHistory) {
         this.paint = {};
         for (var name in this._paintSpecifications) {
-            this.paint[name] = this.getPaintValue(name, {$zoom: zoom, $zoomHistory: zoomHistory});
+            if (this.isPaintValueFeatureConstant(name)) {
+                this.paint[name] = this.getPaintValue(name, {$zoom: zoom, $zoomHistory: zoomHistory});
+            }
         }
 
         this.layout = {};
