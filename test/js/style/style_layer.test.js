@@ -51,7 +51,7 @@ test('StyleLayer#setPaintProperty', function(t) {
         t.end();
     });
 
-    t.test('unsets property value', function(t) {
+    t.test('unsets value', function(t) {
         var layer = StyleLayer.create({
             "id": "background",
             "type": "background",
@@ -59,10 +59,13 @@ test('StyleLayer#setPaintProperty', function(t) {
                 "background-color": "red"
             }
         });
-
+        layer.cascade({}, {transition: false}, null, createAnimationLoop());
         layer.setPaintProperty('background-color', null);
+        layer.cascade({}, {transition: false}, null, createAnimationLoop());
 
+        t.deepEqual(layer.getPaintValue('background-color'), [0, 0, 0, 1]);
         t.equal(layer.getPaintProperty('background-color'), undefined);
+
         t.end();
     });
 
@@ -85,14 +88,20 @@ test('StyleLayer#setPaintProperty', function(t) {
         var layer = StyleLayer.create({
             "id": "background",
             "type": "background",
-            "paint.night": {
+            "paint": {
                 "background-color": "red"
+            },
+            "paint.night": {
+                "background-color": "blue"
             }
         });
-
+        layer.cascade({}, {transition: false}, null, createAnimationLoop());
         layer.setPaintProperty('background-color', null, 'night');
+        layer.cascade({}, {transition: false}, null, createAnimationLoop());
 
+        t.deepEqual(layer.getPaintValue('background-color'), [1, 0, 0, 1]);
         t.equal(layer.getPaintProperty('background-color', 'night'), undefined);
+
         t.end();
     });
 
@@ -139,7 +148,7 @@ test('StyleLayer#setPaintProperty', function(t) {
         });
 
         layer.setPaintProperty('background-color-transition', {duration: 400}, 'background-color');
-        layer.cascade([], {});
+        layer.cascade({}, {transition: false}, null, createAnimationLoop());
         t.deepEqual(layer.getPaintProperty('background-color-transition', 'background-color'), {duration: 400});
         t.end();
     });
@@ -184,7 +193,15 @@ test('StyleLayer#setLayoutProperty', function(t) {
 
         layer.setLayoutProperty('text-transform', null);
 
-        t.deepEqual(layer.getLayoutProperty('text-transform'), undefined);
+        t.equal(layer.getLayoutValue('text-transform'), 'none');
+        t.equal(layer.getLayoutProperty('text-transform'), undefined);
         t.end();
     });
 });
+
+function createAnimationLoop() {
+    return {
+        set: function() {},
+        cancel: function() {}
+    };
+}
