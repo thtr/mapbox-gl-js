@@ -43,7 +43,7 @@ module.exports = CollisionBox;
  * @param {number} maxScale The maximum scale this box can block other boxes at.
  * @private
  */
-function CollisionBox(anchorPoint, x1, y1, x2, y2, maxScale) {
+function CollisionBox(anchorPoint, x1, y1, x2, y2, maxScale, feature, layerIDs) {
     // the box is centered around the anchor point
     this.anchorPoint = anchorPoint;
 
@@ -56,6 +56,12 @@ function CollisionBox(anchorPoint, x1, y1, x2, y2, maxScale) {
     // the box is only valid for scales < maxScale.
     // The box does not block other boxes at scales >= maxScale;
     this.maxScale = maxScale;
+
+    // the index of the feature in the original vectortile
+    this.feature = feature;
+
+    // the IDs of the layers this feature collision box appears in
+    this.layerIDs = layerIDs;
 
     // the scale at which the label can first be shown
     this.placementScale = 0;

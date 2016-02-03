@@ -94,6 +94,7 @@ WorkerTile.prototype.parse = function(data, layers, actor, callback) {
         otherBuckets = [];
 
     var collisionTile = new CollisionTile(this.angle, this.pitch);
+    this.featureTree.setCollisionTile(collisionTile);
 
     for (var id in bucketsById) {
         bucket = bucketsById[id];
@@ -165,8 +166,8 @@ WorkerTile.prototype.parse = function(data, layers, actor, callback) {
         bucket.addFeatures(collisionTile, stacks, icons);
         var time = Date.now() - now;
 
-        if (bucket.interactive) {
-            for (var i = 0; i < bucket.features.length; i++) {
+        if (bucket.interactive && bucket.type !== 'symbol') {
+            if (bucket.type !== 'symbol') {
                 var feature = bucket.features[i];
                 tile.featureTree.insert(feature.bbox(), bucket.layers, feature);
             }
@@ -207,6 +208,8 @@ WorkerTile.prototype.redoPlacement = function(angle, pitch, collisionDebug) {
 
     var buffers = {},
         collisionTile = new CollisionTile(angle, pitch);
+
+    this.featureTree.setCollisionTile(collisionTile);
 
     for (var i = this.symbolBuckets.length - 1; i >= 0; i--) {
         this.symbolBuckets[i].placeFeatures(collisionTile, buffers, collisionDebug);

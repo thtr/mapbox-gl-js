@@ -176,6 +176,8 @@ SymbolBucket.prototype.addFeatures = function(collisionTile, stacks, icons) {
     var textOffset = [layout['text-offset'][0] * oneEm, layout['text-offset'][1] * oneEm];
     var fontstack = layout['text-font'].join(',');
 
+    var layerIDs = [this.id];
+
     var geometries = [];
     for (var g = 0; g < features.length; g++) {
         geometries.push(loadGeometry(features[g]));
@@ -223,14 +225,14 @@ SymbolBucket.prototype.addFeatures = function(collisionTile, stacks, icons) {
         }
 
         if (shapedText || shapedIcon) {
-            this.addFeature(geometries[k], shapedText, shapedIcon);
+            this.addFeature(geometries[k], shapedText, shapedIcon, features[k], layerIDs);
         }
     }
 
     this.placeFeatures(collisionTile, this.buffers, this.collisionDebug);
 };
 
-SymbolBucket.prototype.addFeature = function(lines, shapedText, shapedIcon) {
+SymbolBucket.prototype.addFeature = function(lines, shapedText, shapedIcon, feature, layerIDs) {
     var layout = this.layer.layout;
 
     var glyphSize = 24;
@@ -302,7 +304,8 @@ SymbolBucket.prototype.addFeature = function(lines, shapedText, shapedIcon) {
             // the buffers for both tiles and clipped to tile boundaries at draw time.
             var addToBuffers = inside || mayOverlap;
 
-            this.symbolInstances.push(new SymbolInstance(anchor, line, shapedText, shapedIcon, layout, addToBuffers, this.symbolInstances.length,
+            this.symbolInstances.push(new SymbolInstance(anchor, line, shapedText, shapedIcon, layout,
+                        addToBuffers, this.symbolInstances.length, feature, layerIDs,
                         textBoxScale, textPadding, textAlongLine,
                         iconBoxScale, iconPadding, iconAlongLine));
         }
@@ -534,7 +537,7 @@ SymbolBucket.prototype.addToDebugBuffers = function(collisionTile) {
     }
 };
 
-function SymbolInstance(anchor, line, shapedText, shapedIcon, layout, addToBuffers, index,
+function SymbolInstance(anchor, line, shapedText, shapedIcon, layout, addToBuffers, index, feature, layerIDs,
                         textBoxScale, textPadding, textAlongLine,
                         iconBoxScale, iconPadding, iconAlongLine) {
 
@@ -546,11 +549,11 @@ function SymbolInstance(anchor, line, shapedText, shapedIcon, layout, addToBuffe
 
     if (this.hasText) {
         this.glyphQuads = addToBuffers ? getGlyphQuads(anchor, shapedText, textBoxScale, line, layout, textAlongLine) : [];
-        this.textCollisionFeature = new CollisionFeature(line, anchor, shapedText, textBoxScale, textPadding, textAlongLine, false);
+        this.textCollisionFeature = new CollisionFeature(line, anchor, feature, layerIDs, shapedText, textBoxScale, textPadding, textAlongLine, false);
     }
 
     if (this.hasIcon) {
         this.iconQuads = addToBuffers ? getIconQuads(anchor, shapedIcon, iconBoxScale, line, layout, iconAlongLine) : [];
-        this.iconCollisionFeature = new CollisionFeature(line, anchor, shapedIcon, iconBoxScale, iconPadding, iconAlongLine, true);
+        this.iconCollisionFeature = new CollisionFeature(line, anchor, feature, layerIDs, shapedIcon, iconBoxScale, iconPadding, iconAlongLine, true);
     }
 }

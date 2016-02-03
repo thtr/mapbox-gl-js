@@ -5,6 +5,7 @@ var Point = require('point-geometry');
 var vt = require('vector-tile');
 var util = require('../util/util');
 var loadGeometry = require('./load_geometry');
+var CollisionBox = require('../symbol/collision_box');
 var EXTENT = require('./buffer').EXTENT;
 
 module.exports = FeatureTree;
@@ -34,6 +35,10 @@ FeatureTree.prototype._load = function() {
     this.toBeInserted = [];
 };
 
+FeatureTree.prototype.setCollisionTile = function(collisionTile) {
+    this.collisionTile = collisionTile;
+};
+
 // Finds features in this tile at a particular position.
 FeatureTree.prototype.query = function(args, callback) {
     if (this.toBeInserted.length) this._load();
@@ -43,30 +48,47 @@ FeatureTree.prototype.query = function(args, callback) {
         y = args.y,
         result = [];
 
-    var radius, bounds;
+    var radius, bounds, symbolQueryBox;
     if (typeof x !== 'undefined' && typeof y !== 'undefined') {
         // a point (or point+radius) query
-        radius = (params.radius || 0) * EXTENT / args.scale;
+        radius = (params.radius || 0) * EXTENT / args.tileSize / args.scale;
         bounds = [x - radius, y - radius, x + radius, y + radius];
+        symbolQueryBox = new CollisionBox(new Point(x, y), -radius, -radius, radius, radius, args.scale, null);
     } else {
         // a rectangle query
         bounds = [ args.minX, args.minY, args.maxX, args.maxY ];
     }
 
-    var matching = this.rtree.search(bounds);
+    function checkIntersection(feature) {
+        var type = vt.VectorTileFeature.types[feature.type];
+        if (params.$type && type !== params.$type)
+            return false;
+
+        return radius ?
+            geometryContainsPoint(loadGeometry(feature), type, new Point(x, y), radius) :
+            geometryIntersectsBox(loadGeometry(feature), type, bounds);
+    }
+
+    function checkSymbolIntersection() {
+        return true;
+    }
+
+    this.addFeatures(this.rtree.search(bounds), params, checkIntersection, result);
+
+    if (symbolQueryBox) {
+        this.addFeatures(this.collisionTile.getFeaturesAt(symbolQueryBox, args.scale), params, checkSymbolIntersection, result);
+    }
+
+    callback(null, result);
+};
+
+FeatureTree.prototype.addFeatures = function(matching, params, checkIntersection, result) {
     for (var i = 0; i < matching.length; i++) {
         var feature = matching[i].feature,
-            layers = matching[i].layers,
-            type = vt.VectorTileFeature.types[feature.type];
-
-        if (params.$type && type !== params.$type)
-            continue;
-        if (radius && !geometryContainsPoint(loadGeometry(feature), type, new Point(x, y), radius))
-            continue;
-        else if (!geometryIntersectsBox(loadGeometry(feature), type, bounds))
-            continue;
-
+            layers = matching[i].layers;
         var geoJSON = feature.toGeoJSON(this.x, this.y, this.z);
+
+        if (!checkIntersection(feature)) continue;
 
         if (!params.includeGeometry) {
             geoJSON.geometry = null;
@@ -81,7 +103,6 @@ FeatureTree.prototype.query = function(args, callback) {
             result.push(util.extend({layer: layer}, geoJSON));
         }
     }
-    callback(null, result);
 };
 
 function geometryIntersectsBox(rings, type, bounds) {

@@ -21,7 +21,7 @@ module.exports = CollisionFeature;
  *
  * @private
  */
-function CollisionFeature(line, anchor, shaped, boxScale, padding, alignLine, straight) {
+function CollisionFeature(line, anchor, feature, layerIDs, shaped, boxScale, padding, alignLine, straight) {
 
     var y1 = shaped.top * boxScale - padding;
     var y2 = shaped.bottom * boxScale + padding;
@@ -44,14 +44,14 @@ function CollisionFeature(line, anchor, shaped, boxScale, padding, alignLine, st
             // used for icon labels that are aligned with the line, but don't curve along it
             var vector = line[anchor.segment + 1].sub(line[anchor.segment])._unit()._mult(length);
             var straightLine = [anchor.sub(vector), anchor.add(vector)];
-            this._addLineCollisionBoxes(straightLine, anchor, 0, length, height);
+            this._addLineCollisionBoxes(straightLine, anchor, 0, length, height, feature, layerIDs);
         } else {
             // used for text labels that curve along a line
-            this._addLineCollisionBoxes(line, anchor, anchor.segment, length, height);
+            this._addLineCollisionBoxes(line, anchor, anchor.segment, length, height, feature, layerIDs);
         }
 
     } else {
-        this.boxes.push(new CollisionBox(new Point(anchor.x, anchor.y), x1, y1, x2, y2, Infinity));
+        this.boxes.push(new CollisionBox(new Point(anchor.x, anchor.y), x1, y1, x2, y2, Infinity, feature, layerIDs));
     }
 }
 
@@ -65,7 +65,7 @@ function CollisionFeature(line, anchor, shaped, boxScale, padding, alignLine, st
  *
  * @private
  */
-CollisionFeature.prototype._addLineCollisionBoxes = function(line, anchor, segment, labelLength, boxSize) {
+CollisionFeature.prototype._addLineCollisionBoxes = function(line, anchor, segment, labelLength, boxSize, feature, layerIDs) {
     var step = boxSize / 2;
     var nBoxes = Math.floor(labelLength / step);
 
@@ -118,7 +118,7 @@ CollisionFeature.prototype._addLineCollisionBoxes = function(line, anchor, segme
         var distanceToInnerEdge = Math.max(Math.abs(boxDistanceToAnchor - firstBoxOffset) - step / 2, 0);
         var maxScale = labelLength / 2 / distanceToInnerEdge;
 
-        bboxes.push(new CollisionBox(boxAnchorPoint, -boxSize / 2, -boxSize / 2, boxSize / 2, boxSize / 2, maxScale));
+        bboxes.push(new CollisionBox(boxAnchorPoint, -boxSize / 2, -boxSize / 2, boxSize / 2, boxSize / 2, maxScale, feature, layerIDs));
     }
 
     return bboxes;

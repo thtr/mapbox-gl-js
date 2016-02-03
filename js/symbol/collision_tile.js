@@ -116,6 +116,37 @@ CollisionTile.prototype.placeCollisionFeature = function(collisionFeature, allow
     return minPlacementScale;
 };
 
+CollisionTile.prototype.getFeaturesAt = function(queryBox, scale) {
+    var features = [];
+    var result = [];
+
+    var rotationMatrix = this.rotationMatrix;
+    var anchorPoint = queryBox.anchorPoint.matMult(rotationMatrix);
+
+    var blockingBoxes = this.tree.search([
+            anchorPoint.x + queryBox.x1 / scale,
+            anchorPoint.y + queryBox.y1 / scale * this.yStretch,
+            anchorPoint.x + queryBox.x2 / scale,
+            anchorPoint.y + queryBox.y2 / scale * this.yStretch
+    ]);
+
+    for (var i = 0; i < blockingBoxes.length; i++) {
+        var blocking = blockingBoxes[i];
+        var blockingAnchorPoint = blocking.anchorPoint.matMult(rotationMatrix);
+        var minPlacementScale = this.getPlacementScale(this.minScale, anchorPoint, queryBox, blockingAnchorPoint, blocking);
+        if (minPlacementScale >= scale) {
+            if (features.indexOf(blocking.feature) < 0) {
+                features.push(blocking.feature);
+                result.push({
+                    feature: blocking.feature,
+                    layers: blocking.layerIDs
+                });
+            }
+        }
+    }
+
+    return result;
+};
 
 CollisionTile.prototype.getPlacementScale = function(minPlacementScale, anchorPoint, box, blockingAnchorPoint, blocking) {
 
