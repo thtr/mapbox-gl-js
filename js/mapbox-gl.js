@@ -33,8 +33,13 @@ mapboxgl.util = require('./util/util');
 mapboxgl.supported = require('./util/browser').supported;
 
 var ajax = require('./util/ajax');
+Object.keys(ajax).forEach(function(key){
+	this[key] = ajax[key];
+}, mapboxgl.util);
+/*
 mapboxgl.util.getJSON = ajax.getJSON;
 mapboxgl.util.getArrayBuffer = ajax.getArrayBuffer;
+*/
 
 var config = require('./util/config');
 mapboxgl.config = config;

@@ -4,8 +4,9 @@ var Actor = require('../actor');
 var WebWorkify = require('webworkify');
 
 module.exports = Dispatcher;
-
+// this exists in the Window context
 function Dispatcher(length, parent) {
+// window here
     this.actors = [];
     this.currentActor = 0;
     for (var i = 0; i < length; i++) {
@@ -18,6 +19,7 @@ function Dispatcher(length, parent) {
 
 Dispatcher.prototype = {
     broadcast: function(type, data) {
+//console.log('>>broadcast>',type);
         for (var i = 0; i < this.actors.length; i++) {
             this.actors[i].send(type, data);
         }

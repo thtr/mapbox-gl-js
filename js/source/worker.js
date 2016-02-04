@@ -26,10 +26,14 @@ function Worker(self) {
 }
 
 util.extend(Worker.prototype, {
+    'set option': function(options) {
+		Object.keys(options).forEach(function(key){
+			self[key] = options[key];
+		}, options);
+    },
     'set layers': function(layers) {
         this.layers = layers;
     },
-
     'load tile': function(params, callback) {
         var source = params.source,
             uid = params.uid;
@@ -39,7 +43,9 @@ util.extend(Worker.prototype, {
 
 
         var tile = this.loading[source][uid] = new WorkerTile(params);
-
+// TODO call out to window and get resource there, then pass it back to getArrayBuffer or similar
+//if('undefined' !== typeof WorkerGlobalScope) throw '#-->'+params.url.replace(/\?.*/,'');
+//console.log('tile.xhr>>',typeof WorkerGlobalScope,this);
         tile.xhr = ajax.getArrayBuffer(params.url, done.bind(this));
 
         function done(err, data) {

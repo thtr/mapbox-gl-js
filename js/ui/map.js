@@ -392,6 +392,7 @@ util.extend(Map.prototype, /** @lends Map.prototype */{
      * @param {Object} style A style object formatted as JSON
      * @returns {Map} `this`
      */
+
     setStyle: function(style) {
         if (this.style) {
             this.style
