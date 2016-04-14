@@ -61,7 +61,14 @@ exports.saveFile = function(path, data, mimetype){
 	function save(dirEntry){
 		dirEntry.getFile(part[2], {create:true}, function(fileEntry){
 			fileEntry.createWriter(function(writer){
-				var blob = new Blob([ data ], {type: mimetype||''});
+				var isJSON = /json/i, output, blob, type = mimetype || '';
+
+				if( isJSON.test(type) ){
+					try{
+						data = JSON.stringify( data );
+					}catch(err){ };
+				};
+				blob = new Blob([ data ], {type: type});
 				writer.write( blob );
 			});
 		});
@@ -106,8 +113,15 @@ exports.getFile = function(path, callback, type){
 			if(callback.abort) return;
 			fs.file(function(file){
 				var reader = new FileReader();
+				//reader._file = file;
 				reader.onloadend = function(){
-					callback(false, type === 'json' ? JSON.parse(this.result) : this.result);
+					var output;
+					try{
+						output = type === 'json' ? JSON.parse(this.result) : this.result;
+					}catch(err){
+						return callback(err);
+					};
+					callback(false, output);
 				};
 				reader.onerror = callback;
 				reader[type === 'json' ? 'readAsText':'readAsArrayBuffer'](file);
