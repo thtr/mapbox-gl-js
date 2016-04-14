@@ -26,106 +26,106 @@ module.exports = SymbolBucket;
 
 function SymbolBucket(options) {
     Bucket.apply(this, arguments);
-    this.collisionDebug = options.collisionDebug;
+    this.showCollisionBoxes = options.showCollisionBoxes;
     this.overscaling = options.overscaling;
+    this.collisionBoxArray = options.collisionBoxArray;
 }
 
 SymbolBucket.prototype = util.inherit(Bucket, {});
 
-var shaderAttributeArgs = ['x', 'y', 'ox', 'oy', 'tx', 'ty', 'minzoom', 'maxzoom', 'labelminzoom'];
-
-var shaderAttributes = [{
-    name: 'pos',
+var programAttributes = [{
+    name: 'a_pos',
     components: 2,
-    type: Bucket.AttributeType.SHORT,
-    value: ['x', 'y']
+    type: 'Int16'
 }, {
-    name: 'offset',
+    name: 'a_offset',
     components: 2,
-    type: Bucket.AttributeType.SHORT,
-    value: [
-        'Math.round(ox * 64)', // use 1/64 pixels for placement
-        'Math.round(oy * 64)'
-    ]
+    type: 'Int16'
 }, {
-    name: 'data1',
+    name: 'a_data1',
     components: 4,
-    type: Bucket.AttributeType.UNSIGNED_BYTE,
-    value: [
-        'tx / 4',                   // tex
-        'ty / 4',                   // tex
-        '(labelminzoom || 0) * 10', // labelminzoom
-        '0'
-    ]
+    type: 'Uint8'
 }, {
-    name: 'data2',
+    name: 'a_data2',
     components: 2,
-    type: Bucket.AttributeType.UNSIGNED_BYTE,
-    value: [
-        '(minzoom || 0) * 10',             // minzoom
-        'Math.min(maxzoom || 25, 25) * 10' // minzoom
-    ]
+    type: 'Uint8'
 }];
 
-SymbolBucket.prototype.shaderInterfaces = {
+function addVertex(array, x, y, ox, oy, tx, ty, minzoom, maxzoom, labelminzoom) {
+    return array.emplaceBack(
+            // pos
+            x,
+            y,
+            // offset
+            Math.round(ox * 64), // use 1/64 pixels for placement
+            Math.round(oy * 64),
+            // data1
+            tx / 4,                   // tex
+            ty / 4,                   // tex
+            (labelminzoom || 0) * 10, // labelminzoom
+            0,
+            // data2
+            (minzoom || 0) * 10,               // minzoom
+            Math.min(maxzoom || 25, 25) * 10); // minzoom
+}
+
+SymbolBucket.prototype.addCollisionBoxVertex = function(point, extrude, maxZoom, placementZoom) {
+    return this.arrays.collisionBoxVertex.emplaceBack(
+            // pos
+            point.x,
+            point.y,
+            // extrude
+            Math.round(extrude.x),
+            Math.round(extrude.y),
+            // data
+            maxZoom * 10,
+            placementZoom * 10);
+};
+
+SymbolBucket.prototype.programInterfaces = {
 
     glyph: {
         vertexBuffer: true,
         elementBuffer: true,
-        attributeArgs: shaderAttributeArgs,
-        attributes: shaderAttributes
+        attributes: programAttributes
     },
 
     icon: {
         vertexBuffer: true,
         elementBuffer: true,
-        attributeArgs: shaderAttributeArgs,
-        attributes: shaderAttributes
+        attributes: programAttributes
     },
 
     collisionBox: {
         vertexBuffer: true,
 
-        attributeArgs: ['point', 'extrude', 'maxZoom', 'placementZoom'],
-
         attributes: [{
-            name: 'pos',
+            name: 'a_pos',
             components: 2,
-            type: Bucket.AttributeType.SHORT,
-            value: [ 'point.x', 'point.y' ]
+            type: 'Int16'
         }, {
-            name: 'extrude',
+            name: 'a_extrude',
             components: 2,
-            type: Bucket.AttributeType.SHORT,
-            value: [
-                'Math.round(extrude.x)',
-                'Math.round(extrude.y)'
-            ]
+            type: 'Int16'
         }, {
-            name: 'data',
+            name: 'a_data',
             components: 2,
-            type: Bucket.AttributeType.UNSIGNED_BYTE,
-            value: [
-                'maxZoom * 10',
-                'placementZoom * 10'
-            ]
+            type: 'Uint8'
         }]
     }
 };
 
 SymbolBucket.prototype.populateBuffers = function(collisionTile, stacks, icons) {
-    this.createStyleLayer();
-    this.createBuffers();
 
     // To reduce the number of labels that jump around when zooming we need
     // to use a text-size value that is the same for all zoom levels.
     // This calculates text-size at a high zoom level so that all tiles can
     // use the same value when calculating anchor positions.
     var zoomHistory = { lastIntegerZoom: Infinity, lastIntegerZoomTime: 0, lastZoom: 0 };
-    this.adjustedTextMaxSize = this.layer.getLayoutValue('text-size', 18, zoomHistory);
-    this.adjustedTextSize = this.layer.getLayoutValue('text-size', this.zoom + 1, zoomHistory);
-    this.adjustedIconMaxSize = this.layer.getLayoutValue('icon-size', 18, zoomHistory);
-    this.adjustedIconSize = this.layer.getLayoutValue('icon-size', this.zoom + 1, zoomHistory);
+    this.adjustedTextMaxSize = this.layer.getLayoutValue('text-size', {zoom: 18, zoomHistory: zoomHistory});
+    this.adjustedTextSize = this.layer.getLayoutValue('text-size', {zoom: this.zoom + 1, zoomHistory: zoomHistory});
+    this.adjustedIconMaxSize = this.layer.getLayoutValue('icon-size', {zoom: 18, zoomHistory: zoomHistory});
+    this.adjustedIconSize = this.layer.getLayoutValue('icon-size', {zoom: this.zoom + 1, zoomHistory: zoomHistory});
 
     var tileSize = 512 * this.overscaling;
     this.tilePixelRatio = EXTENT / tileSize;
@@ -224,16 +224,16 @@ SymbolBucket.prototype.populateBuffers = function(collisionTile, stacks, icons) 
         }
 
         if (shapedText || shapedIcon) {
-            this.addFeature(geometries[k], shapedText, shapedIcon);
+            this.addFeature(geometries[k], shapedText, shapedIcon, features[k].index);
         }
     }
 
-    this.placeFeatures(collisionTile, this.collisionDebug);
+    this.placeFeatures(collisionTile, this.showCollisionBoxes);
 
-    this.trimBuffers();
+    this.trimArrays();
 };
 
-SymbolBucket.prototype.addFeature = function(lines, shapedText, shapedIcon) {
+SymbolBucket.prototype.addFeature = function(lines, shapedText, shapedIcon, featureIndex) {
     var layout = this.layer.layout;
 
     var glyphSize = 24;
@@ -305,7 +305,8 @@ SymbolBucket.prototype.addFeature = function(lines, shapedText, shapedIcon) {
             // the buffers for both tiles and clipped to tile boundaries at draw time.
             var addToBuffers = inside || mayOverlap;
 
-            this.symbolInstances.push(new SymbolInstance(anchor, line, shapedText, shapedIcon, layout, addToBuffers, this.symbolInstances.length,
+            this.symbolInstances.push(new SymbolInstance(anchor, line, shapedText, shapedIcon, layout,
+                        addToBuffers, this.symbolInstances.length, this.collisionBoxArray, featureIndex, this.sourceLayerIndex, this.index,
                         textBoxScale, textPadding, textAlongLine,
                         iconBoxScale, iconPadding, iconAlongLine));
         }
@@ -330,9 +331,13 @@ SymbolBucket.prototype.anchorIsTooClose = function(text, repeatDistance, anchor)
     return false;
 };
 
-SymbolBucket.prototype.placeFeatures = function(collisionTile, collisionDebug) {
+SymbolBucket.prototype.placeFeatures = function(collisionTile, showCollisionBoxes) {
+    this.recalculateStyleLayers();
+
     // Calculate which labels can be shown and when they can be shown and
     // create the bufers used for rendering.
+
+    this.createArrays();
 
     var elementGroups = this.elementGroups = {
         glyph: [],
@@ -409,18 +414,14 @@ SymbolBucket.prototype.placeFeatures = function(collisionTile, collisionDebug) {
         // Insert final placement into collision tree and add glyphs/icons to buffers
 
         if (hasText) {
-            if (!layout['text-ignore-placement']) {
-                collisionTile.insertCollisionFeature(symbolInstance.textCollisionFeature, glyphScale);
-            }
+            collisionTile.insertCollisionFeature(symbolInstance.textCollisionFeature, glyphScale, layout['text-ignore-placement']);
             if (glyphScale <= maxScale) {
                 this.addSymbols('glyph', symbolInstance.glyphQuads, glyphScale, layout['text-keep-upright'], textAlongLine, collisionTile.angle);
             }
         }
 
         if (hasIcon) {
-            if (!layout['icon-ignore-placement']) {
-                collisionTile.insertCollisionFeature(symbolInstance.iconCollisionFeature, iconScale);
-            }
+            collisionTile.insertCollisionFeature(symbolInstance.iconCollisionFeature, iconScale, layout['icon-ignore-placement']);
             if (iconScale <= maxScale) {
                 this.addSymbols('icon', symbolInstance.iconQuads, iconScale, layout['icon-keep-upright'], iconAlongLine, collisionTile.angle);
             }
@@ -428,16 +429,16 @@ SymbolBucket.prototype.placeFeatures = function(collisionTile, collisionDebug) {
 
     }
 
-    if (collisionDebug) this.addToDebugBuffers(collisionTile);
+    if (showCollisionBoxes) this.addToDebugBuffers(collisionTile);
 };
 
-SymbolBucket.prototype.addSymbols = function(shaderName, quads, scale, keepUpright, alongLine, placementAngle) {
+SymbolBucket.prototype.addSymbols = function(programName, quads, scale, keepUpright, alongLine, placementAngle) {
 
-    var group = this.makeRoomFor(shaderName, 4 * quads.length);
+    var group = this.makeRoomFor(programName, 4 * quads.length);
 
     // TODO manual curry
-    var addElement = this[this.getAddMethodName(shaderName, 'element')].bind(this);
-    var addVertex = this[this.getAddMethodName(shaderName, 'vertex')].bind(this);
+    var elementArray = this.arrays[this.getBufferName(programName, 'element')];
+    var vertexArray = this.arrays[this.getBufferName(programName, 'vertex')];
 
     var zoom = this.zoom;
     var placementZoom = Math.max(Math.log(scale) / Math.LN2 + zoom, 0);
@@ -466,22 +467,21 @@ SymbolBucket.prototype.addSymbols = function(shaderName, quads, scale, keepUprig
         // Lower min zoom so that while fading out the label it can be shown outside of collision-free zoom levels
         if (minZoom === placementZoom) minZoom = 0;
 
-        var index = addVertex(anchorPoint.x, anchorPoint.y, tl.x, tl.y, tex.x, tex.y, minZoom, maxZoom, placementZoom) - group.vertexStartIndex;
-        addVertex(anchorPoint.x, anchorPoint.y, tr.x, tr.y, tex.x + tex.w, tex.y, minZoom, maxZoom, placementZoom);
-        addVertex(anchorPoint.x, anchorPoint.y, bl.x, bl.y, tex.x, tex.y + tex.h, minZoom, maxZoom, placementZoom);
-        addVertex(anchorPoint.x, anchorPoint.y, br.x, br.y, tex.x + tex.w, tex.y + tex.h, minZoom, maxZoom, placementZoom);
+        var index = addVertex(vertexArray, anchorPoint.x, anchorPoint.y, tl.x, tl.y, tex.x, tex.y, minZoom, maxZoom, placementZoom) - group.vertexStartIndex;
+        addVertex(vertexArray, anchorPoint.x, anchorPoint.y, tr.x, tr.y, tex.x + tex.w, tex.y, minZoom, maxZoom, placementZoom);
+        addVertex(vertexArray, anchorPoint.x, anchorPoint.y, bl.x, bl.y, tex.x, tex.y + tex.h, minZoom, maxZoom, placementZoom);
+        addVertex(vertexArray, anchorPoint.x, anchorPoint.y, br.x, br.y, tex.x + tex.w, tex.y + tex.h, minZoom, maxZoom, placementZoom);
         group.vertexLength += 4;
 
-        addElement(index, index + 1, index + 2);
-        addElement(index + 1, index + 2, index + 3);
+        elementArray.emplaceBack(index, index + 1, index + 2);
+        elementArray.emplaceBack(index + 1, index + 2, index + 3);
         group.elementLength += 2;
     }
 
 };
 
 SymbolBucket.prototype.updateIcons = function(icons) {
-    this.createStyleLayer();
-
+    this.recalculateStyleLayers();
     var iconValue = this.layer.layout['icon-image'];
     if (!iconValue) return;
 
@@ -493,8 +493,7 @@ SymbolBucket.prototype.updateIcons = function(icons) {
 };
 
 SymbolBucket.prototype.updateFont = function(stacks) {
-    this.createStyleLayer();
-
+    this.recalculateStyleLayers();
     var fontName = this.layer.layout['text-font'],
         stack = stacks[fontName] = stacks[fontName] || {};
 
@@ -511,10 +510,9 @@ SymbolBucket.prototype.addToDebugBuffers = function(collisionTile) {
         for (var i = 0; i < 2; i++) {
             var feature = this.symbolInstances[j][i === 0 ? 'textCollisionFeature' : 'iconCollisionFeature'];
             if (!feature) continue;
-            var boxes = feature.boxes;
 
-            for (var b = 0; b < boxes.length; b++) {
-                var box = boxes[b];
+            for (var b = feature.boxStartIndex; b < feature.boxEndIndex; b++) {
+                var box = this.collisionBoxArray.get(b);
                 var anchorPoint = box.anchorPoint;
 
                 var tl = new Point(box.x1, box.y1 * yStretch)._rotate(angle);
@@ -539,7 +537,7 @@ SymbolBucket.prototype.addToDebugBuffers = function(collisionTile) {
     }
 };
 
-function SymbolInstance(anchor, line, shapedText, shapedIcon, layout, addToBuffers, index,
+function SymbolInstance(anchor, line, shapedText, shapedIcon, layout, addToBuffers, index, collisionBoxArray, featureIndex, sourceLayerIndex, bucketIndex,
                         textBoxScale, textPadding, textAlongLine,
                         iconBoxScale, iconPadding, iconAlongLine) {
 
@@ -551,11 +549,13 @@ function SymbolInstance(anchor, line, shapedText, shapedIcon, layout, addToBuffe
 
     if (this.hasText) {
         this.glyphQuads = addToBuffers ? getGlyphQuads(anchor, shapedText, textBoxScale, line, layout, textAlongLine) : [];
-        this.textCollisionFeature = new CollisionFeature(line, anchor, shapedText, textBoxScale, textPadding, textAlongLine, false);
+        this.textCollisionFeature = new CollisionFeature(collisionBoxArray, line, anchor, featureIndex, sourceLayerIndex, bucketIndex,
+                shapedText, textBoxScale, textPadding, textAlongLine, false);
     }
 
     if (this.hasIcon) {
         this.iconQuads = addToBuffers ? getIconQuads(anchor, shapedIcon, iconBoxScale, line, layout, iconAlongLine) : [];
-        this.iconCollisionFeature = new CollisionFeature(line, anchor, shapedIcon, iconBoxScale, iconPadding, iconAlongLine, true);
+        this.iconCollisionFeature = new CollisionFeature(collisionBoxArray, line, anchor, featureIndex, sourceLayerIndex, bucketIndex,
+                shapedIcon, iconBoxScale, iconPadding, iconAlongLine, true);
     }
 }

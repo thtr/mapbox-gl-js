@@ -5,6 +5,8 @@ var LngLat = require('./lng_lat'),
     Coordinate = require('./coordinate'),
     wrap = require('../util/util').wrap,
     interp = require('../util/interpolate'),
+    TileCoord = require('../source/tile_coord'),
+    EXTENT = require('../data/bucket').EXTENT,
     glmatrix = require('gl-matrix');
 
 var vec4 = glmatrix.vec4,
@@ -13,7 +15,7 @@ var vec4 = glmatrix.vec4,
 
 module.exports = Transform;
 
-/*
+/**
  * A single transform, generally used for a single tile to be
  * scaled, rotated, and zoomed.
  *
@@ -254,9 +256,9 @@ Transform.prototype = {
             this.yLat(coord.row, worldSize));
     },
 
-    pointCoordinate: function(p, targetZ) {
+    pointCoordinate: function(p) {
 
-        if (targetZ === undefined) targetZ = 0;
+        var targetZ = 0;
 
         var matrix = this.coordinatePointMatrix(this.tileZoom);
         mat4.invert(matrix, matrix);
@@ -322,6 +324,33 @@ Transform.prototype = {
         mat4.scale(m, m, [this.width / 2, -this.height / 2, 1]);
         mat4.translate(m, m, [1, -1, 0]);
         return m;
+    },
+
+    /**
+     * Calculate the posMatrix that, given a tile coordinate, would be used to display the tile on a map.
+     * @param {TileCoord|Coordinate} coord
+     * @param {Number} maxZoom maximum source zoom to account for overscaling
+     * @private
+     */
+    calculatePosMatrix: function(coord, maxZoom) {
+        if (coord instanceof TileCoord) coord = coord.toCoordinate();
+        if (maxZoom === undefined) maxZoom = Infinity;
+
+        // Initialize model-view matrix that converts from the tile coordinates to screen coordinates.
+
+        // if z > maxzoom then the tile is actually a overscaled maxzoom tile,
+        // so calculate the matrix the maxzoom tile would use.
+        var z = Math.min(coord.zoom, maxZoom);
+
+        var scale = this.worldSize / Math.pow(2, z);
+        var posMatrix = new Float64Array(16);
+
+        mat4.identity(posMatrix);
+        mat4.translate(posMatrix, posMatrix, [coord.column * scale, coord.row * scale, 0]);
+        mat4.scale(posMatrix, posMatrix, [ scale / EXTENT, scale / EXTENT, 1 ]);
+        mat4.multiply(posMatrix, this.projMatrix, posMatrix);
+
+        return new Float32Array(posMatrix);
     },
 
     _constrain: function() {
@@ -400,7 +429,7 @@ Transform.prototype = {
         mat4.translate(m, m, [0, 0, -this.altitude]);
 
         // After the rotateX, z values are in pixel units. Convert them to
-        // altitude unites. 1 altitude unit = the screen height.
+        // altitude units. 1 altitude unit = the screen height.
         mat4.scale(m, m, [1, -1, 1 / this.height]);
 
         mat4.rotateX(m, m, this._pitch);

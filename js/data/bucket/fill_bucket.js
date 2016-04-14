@@ -12,20 +12,21 @@ function FillBucket() {
 
 FillBucket.prototype = util.inherit(Bucket, {});
 
-FillBucket.prototype.shaderInterfaces = {
+FillBucket.prototype.addFillVertex = function(x, y) {
+    return this.arrays.fillVertex.emplaceBack(x, y);
+};
+
+FillBucket.prototype.programInterfaces = {
     fill: {
         vertexBuffer: true,
         elementBuffer: true,
         secondElementBuffer: true,
         secondElementBufferComponents: 2,
 
-        attributeArgs: ['x', 'y'],
-
         attributes: [{
-            name: 'pos',
+            name: 'a_pos',
             components: 2,
-            type: Bucket.AttributeType.SHORT,
-            value: ['x', 'y']
+            type: 'Int16'
         }]
     }
 };
@@ -66,12 +67,12 @@ FillBucket.prototype.addFill = function(vertices) {
 
         // Only add triangles that have distinct vertices.
         if (i >= 2 && (currentVertex.x !== vertices[0].x || currentVertex.y !== vertices[0].y)) {
-            this.addFillElement(firstIndex, prevIndex, currentIndex);
+            this.arrays.fillElement.emplaceBack(firstIndex, prevIndex, currentIndex);
             group.elementLength++;
         }
 
         if (i >= 1) {
-            this.addFillSecondElement(prevIndex, currentIndex);
+            this.arrays.fillSecondElement.emplaceBack(prevIndex, currentIndex);
             group.secondElementLength++;
         }
 

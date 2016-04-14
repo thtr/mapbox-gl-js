@@ -14,7 +14,7 @@ module.exports = GeoJSONSource;
  * @class GeoJSONSource
  * @param {Object} [options]
  * @param {Object|string} options.data A GeoJSON data object or URL to it. The latter is preferable in case of large GeoJSON files.
- * @param {number} [options.maxzoom=14] Maximum zoom to preserve detail at.
+ * @param {number} [options.maxzoom=18] Maximum zoom to preserve detail at.
  * @param {number} [options.buffer] Tile buffer on each side in pixels.
  * @param {number} [options.tolerance] Simplification tolerance (higher means simpler) in pixels.
  * @param {number} [options.cluster] If the data is a collection of point features, setting this to true clusters the points by radius into groups.
@@ -58,7 +58,7 @@ function GeoJSONSource(options) {
 
     this.cluster = options.cluster || false;
     this.superclusterOptions = {
-        maxZoom: Math.max(options.clusterMaxZoom, this.maxzoom - 1) || (this.maxzoom - 1),
+        maxZoom: Math.min(options.clusterMaxZoom, this.maxzoom - 1) || (this.maxzoom - 1),
         extent: EXTENT,
         radius: (options.clusterRadius || 50) * scale,
         log: false
@@ -80,7 +80,7 @@ function GeoJSONSource(options) {
 
 GeoJSONSource.prototype = util.inherit(Evented, /** @lends GeoJSONSource.prototype */{
     minzoom: 0,
-    maxzoom: 14,
+    maxzoom: 18,
     tileSize: 512,
     _dirty: true,
     isTileClipped: true,
@@ -137,8 +137,8 @@ GeoJSONSource.prototype = util.inherit(Evented, /** @lends GeoJSONSource.prototy
     getVisibleCoordinates: Source._getVisibleCoordinates,
     getTile: Source._getTile,
 
-    featuresAt: Source._vectorFeaturesAt,
-    featuresIn: Source._vectorFeaturesIn,
+    queryRenderedFeatures: Source._queryRenderedVectorFeatures,
+    querySourceFeatures: Source._querySourceFeatures,
 
     _updateData: function() {
         this._dirty = false;
@@ -180,7 +180,7 @@ GeoJSONSource.prototype = util.inherit(Evented, /** @lends GeoJSONSource.prototy
             overscaling: overscaling,
             angle: this.map.transform.angle,
             pitch: this.map.transform.pitch,
-            collisionDebug: this.map.collisionDebug
+            showCollisionBoxes: this.map.showCollisionBoxes
         };
 
         tile.workerID = this.dispatcher.send('load geojson tile', params, function(err, data) {
@@ -195,7 +195,7 @@ GeoJSONSource.prototype = util.inherit(Evented, /** @lends GeoJSONSource.prototy
                 return;
             }
 
-            tile.loadVectorData(data);
+            tile.loadVectorData(data, this.map.style);
 
             if (tile.redoWhenDone) {
                 tile.redoWhenDone = false;

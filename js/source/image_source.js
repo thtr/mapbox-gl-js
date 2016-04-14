@@ -2,6 +2,7 @@
 
 var util = require('../util/util');
 var Tile = require('./tile');
+var TileCoord = require('./tile_coord');
 var LngLat = require('../geo/lng_lat');
 var Point = require('point-geometry');
 var Evented = require('../util/evented');
@@ -51,7 +52,7 @@ function ImageSource(options) {
     }.bind(this));
 }
 
-ImageSource.prototype = util.inherit(Evented, {
+ImageSource.prototype = util.inherit(Evented, /** @lends ImageSource.prototype */ {
     onAdd: function(map) {
         this.map = map;
         if (this.image) {
@@ -78,6 +79,8 @@ ImageSource.prototype = util.inherit(Evented, {
         });
 
         var centerCoord = this.centerCoord = util.getCoordinatesCenter(cornerZ0Coords);
+        centerCoord.column = Math.round(centerCoord.column);
+        centerCoord.row = Math.round(centerCoord.row);
 
         var tileCoords = cornerZ0Coords.map(function(coord) {
             var zoomedCoord = coord.zoomTo(centerCoord.zoom);
@@ -95,7 +98,7 @@ ImageSource.prototype = util.inherit(Evented, {
             tileCoords[2].x, tileCoords[2].y, maxInt16, maxInt16
         ]);
 
-        this.tile = new Tile();
+        this.tile = new Tile(new TileCoord(centerCoord.zoom, centerCoord.column, centerCoord.row));
         this.tile.buckets = {};
 
         this.tile.boundsBuffer = gl.createBuffer();
@@ -140,25 +143,12 @@ ImageSource.prototype = util.inherit(Evented, {
     },
 
     getVisibleCoordinates: function() {
-        if (this.centerCoord) return [this.centerCoord];
+        if (this.tile) return [this.tile.coord];
         else return [];
     },
 
     getTile: function() {
         return this.tile;
-    },
-
-    /**
-     * An ImageSource doesn't have any vector features that could
-     * be selectable, so always return an empty array.
-     * @private
-     */
-    featuresAt: function(point, params, callback) {
-        return callback(null, []);
-    },
-
-    featuresIn: function(bbox, params, callback) {
-        return callback(null, []);
     },
 
     serialize: function() {

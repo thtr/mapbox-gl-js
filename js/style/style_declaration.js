@@ -1,6 +1,6 @@
 'use strict';
 
-var MapboxGLFunction = require('mapbox-gl-function');
+var MapboxGLFunction = require('./style_function');
 var parseColor = require('./parse_color');
 
 module.exports = StyleDeclaration;
@@ -15,18 +15,21 @@ function StyleDeclaration(reference, value) {
     this.json = JSON.stringify(this.value);
 
     var parsedValue = this.type === 'color' ? parseColor(this.value) : value;
-    if (reference.function === 'interpolated') {
-        this.calculate = MapboxGLFunction.interpolated(parsedValue);
-    } else {
-        this.calculate = MapboxGLFunction['piecewise-constant'](parsedValue);
-        if (reference.transition) {
-            this.calculate = transitioned(this.calculate);
-        }
+    this.calculate = MapboxGLFunction[reference.function || 'piecewise-constant'](parsedValue);
+    this.isFeatureConstant = this.calculate.isFeatureConstant;
+    this.isGlobalConstant = this.calculate.isGlobalConstant;
+
+    if (reference.function === 'piecewise-constant' && reference.transition) {
+        this.calculate = transitioned(this.calculate);
     }
 }
 
 function transitioned(calculate) {
-    return function(z, zh, duration) {
+    return function(globalProperties, featureProperties) {
+        var z = globalProperties.zoom;
+        var zh = globalProperties.zoomHistory;
+        var duration = globalProperties.duration;
+
         var fraction = z % 1;
         var t = Math.min((Date.now() - zh.lastIntegerZoomTime) / duration, 1);
         var fromScale = 1;
@@ -36,12 +39,12 @@ function transitioned(calculate) {
         if (z > zh.lastIntegerZoom) {
             mix = fraction + (1 - fraction) * t;
             fromScale *= 2;
-            from = calculate(z - 1);
-            to = calculate(z);
+            from = calculate({zoom: z - 1}, featureProperties);
+            to = calculate({zoom: z}, featureProperties);
         } else {
             mix = 1 - (1 - t) * fraction;
-            to = calculate(z);
-            from = calculate(z + 1);
+            to = calculate({zoom: z}, featureProperties);
+            from = calculate({zoom: z + 1}, featureProperties);
             fromScale /= 2;
         }
 

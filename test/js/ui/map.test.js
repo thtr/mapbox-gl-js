@@ -1,6 +1,6 @@
 'use strict';
 
-var test = require('prova');
+var test = require('tap').test;
 var extend = require('../../../js/util/util').extend;
 var Map = require('../../../js/ui/map');
 var Style = require('../../../js/style/style');
@@ -67,28 +67,22 @@ test('Map', function(t) {
                     layers: []
                 });
 
-            function styleEvent(e) {
+            var events = [];
+
+            function checkEvent(e) {
                 t.equal(e.style, style);
+                events.push(e.type);
             }
 
-            function sourceEvent(e) {
-                t.equal(e.style, style);
-            }
-
-            function tileEvent(e) {
-                t.equal(e.style, style);
-            }
-
-            map.on('style.load',    styleEvent);
-            map.on('style.error',   styleEvent);
-            map.on('style.change',  styleEvent);
-            map.on('source.load',   sourceEvent);
-            map.on('source.error',  sourceEvent);
-            map.on('source.change', sourceEvent);
-            map.on('tile.add',      tileEvent);
-            map.on('tile.load',     tileEvent);
-            map.on('tile.error',    tileEvent);
-            map.on('tile.remove',   tileEvent);
+            map.on('style.load',    checkEvent);
+            map.on('style.error',   checkEvent);
+            map.on('style.change',  checkEvent);
+            map.on('source.load',   checkEvent);
+            map.on('source.error',  checkEvent);
+            map.on('source.change', checkEvent);
+            map.on('tile.add',      checkEvent);
+            map.on('tile.error',    checkEvent);
+            map.on('tile.remove',   checkEvent);
 
             map.off('style.error', map.onError);
             map.off('source.error', map.onError);
@@ -103,7 +97,6 @@ test('Map', function(t) {
             style.fire('source.error');
             style.fire('source.change');
             style.fire('tile.add');
-            style.fire('tile.load');
             style.fire('tile.error');
             style.fire('tile.remove');
             style.fire('layer.error');
@@ -164,6 +157,7 @@ test('Map', function(t) {
             });
         });
 
+        t.end();
     });
 
     t.test('#getStyle', function(t) {
@@ -231,6 +225,8 @@ test('Map', function(t) {
                 t.end();
             });
         });
+
+        t.end();
     });
 
     t.test('#resize', function(t) {
@@ -263,6 +259,8 @@ test('Map', function(t) {
 
             t.end();
         });
+
+        t.end();
     });
 
     t.test('#getBounds', function(t) {
@@ -290,6 +288,95 @@ test('Map', function(t) {
                 [bounds[1][0].toFixed(n), bounds[1][1].toFixed(n)]
             ];
         }
+    });
+
+    t.test('#setMaxBounds', function (t) {
+        t.test('constrains map bounds', function (t) {
+            var map = createMap({zoom:0});
+            map.setMaxBounds([[-130.4297, 50.0642], [-61.52344, 24.20688]]);
+            t.deepEqual(toFixed(map.getBounds().toArray()), toFixed([
+                [-112.5000192114, 24.2068800000],
+                [-79.4531207886, 50.0642000000]]));
+            t.end();
+        });
+
+        t.test('when no argument is passed, map bounds constraints are removed', function (t) {
+            var map = createMap({zoom:0});
+            map.setMaxBounds([[-130.4297, 50.0642], [-61.52344, 24.20688]]);
+            t.deepEqual(toFixed(map.setMaxBounds(null).setZoom(0).getBounds().toArray()), toFixed([
+                [-166.28906999999964, -27.683527055417144],
+                [-25.664070000000066, 73.8248206696509]]));
+            t.end();
+        });
+
+        t.test('should not zoom out farther than bounds', function (t) {
+            var map = createMap();
+            map.setMaxBounds([[-130.4297, 50.0642], [-61.52344, 24.20688]]);
+            t.notEqual(map.setZoom(0).getZoom(), 0);
+            t.end();
+        });
+
+        function toFixed(bounds) {
+            var n = 10;
+            return [
+                [bounds[0][0].toFixed(n), bounds[0][1].toFixed(n)],
+                [bounds[1][0].toFixed(n), bounds[1][1].toFixed(n)]
+            ];
+        }
+
+        t.end();
+    });
+
+    t.test('#setMinZoom', function(t) {
+        var map = createMap({zoom:5});
+        map.setMinZoom(3.5);
+        map.setZoom(1);
+        t.equal(map.getZoom(), 3.5);
+        t.end();
+    });
+
+    t.test('unset minZoom', function(t) {
+        var map = createMap({minZoom:5});
+        map.setMinZoom(null);
+        map.setZoom(1);
+        t.equal(map.getZoom(), 1);
+        t.end();
+    });
+
+    t.test('ignore minZooms over maxZoom', function(t) {
+        var map = createMap({zoom:2, maxZoom:5});
+        t.throws(function() {
+            map.setMinZoom(6);
+        });
+        map.setZoom(0);
+        t.equal(map.getZoom(), 0);
+        t.end();
+    });
+
+    t.test('#setMaxZoom', function (t) {
+        var map = createMap({zoom:0});
+        map.setMaxZoom(3.5);
+        map.setZoom(4);
+        t.equal(map.getZoom(), 3.5);
+        t.end();
+    });
+
+    t.test('unset maxZoom', function(t) {
+        var map = createMap({maxZoom:5});
+        map.setMaxZoom(null);
+        map.setZoom(6);
+        t.equal(map.getZoom(), 6);
+        t.end();
+    });
+
+    t.test('ignore maxZooms over minZoom', function(t) {
+        var map = createMap({minZoom:5});
+        t.throws(function() {
+            map.setMaxZoom(4);
+        });
+        map.setZoom(5);
+        t.equal(map.getZoom(), 5);
+        t.end();
     });
 
     t.test('#remove', function(t) {
@@ -372,25 +459,7 @@ test('Map', function(t) {
         t.end();
     });
 
-    t.test('#batch', function(t) {
-        var map = createMap();
-        map.setStyle({
-            version: 8,
-            sources: {},
-            layers: []
-        });
-        map.on('style.load', function() {
-            map.batch(function(batch) {
-                batch.addLayer({ id: 'background', type: 'background' });
-            });
-            t.ok(map.getLayer('background'), 'has background');
-
-            t.end();
-        });
-    });
-
-
-    t.test('#featuresAt', function(t) {
+    t.test('#queryRenderedFeatures', function(t) {
         var map = createMap();
         map.setStyle({
             "version": 8,
@@ -399,35 +468,35 @@ test('Map', function(t) {
         });
 
         map.on('style.load', function() {
-            var callback = function () {};
             var opts = {};
 
             t.test('normal coords', function(t) {
-                map.style.featuresAt = function (coords, o, cb) {
-                    t.deepEqual(coords, { column: 0.5, row: 0.5, zoom: 0 });
+                map.style.queryRenderedFeatures = function (coords, o, zoom, bearing) {
+                    t.deepEqual(coords, [{ column: 0.5, row: 0.5, zoom: 0 }]);
                     t.equal(o, opts);
-                    t.equal(cb, callback);
-
+                    t.equal(bearing, map.transform.angle);
+                    t.equal(zoom, map.getZoom());
                     t.end();
                 };
 
-                map.featuresAt(map.project(new LngLat(0, 0)), opts, callback);
+                map.queryRenderedFeatures(map.project(new LngLat(0, 0)), opts);
             });
 
-            t.test('wraps coords', function(t) {
-                map.style.featuresAt = function (coords, o, cb) {
+            t.test('does not wrap coords', function(t) {
+                map.style.queryRenderedFeatures = function (coords, o, zoom, bearing) {
                     // avoid floating point issues
-                    t.equal(parseFloat(coords.column.toFixed(4)), 0.5);
-                    t.equal(coords.row, 0.5);
-                    t.equal(coords.zoom, 0);
+                    t.equal(parseFloat(coords[0].column.toFixed(4)), 1.5);
+                    t.equal(coords[0].row, 0.5);
+                    t.equal(coords[0].zoom, 0);
 
                     t.equal(o, opts);
-                    t.equal(cb, callback);
+                    t.equal(bearing, map.transform.angle);
+                    t.equal(zoom, map.getZoom());
 
                     t.end();
                 };
 
-                map.featuresAt(map.project(new LngLat(360, 0)), opts, callback);
+                map.queryRenderedFeatures(map.project(new LngLat(360, 0)), opts);
             });
 
             t.end();
@@ -460,7 +529,53 @@ test('Map', function(t) {
             });
 
             map.on('style.load', function () {
+                map.style.dispatcher.broadcast = function(key, value) {
+                    t.equal(key, 'update layers');
+                    t.deepEqual(value.map(function(layer) { return layer.id; }), ['symbol']);
+                };
+
                 map.setLayoutProperty('symbol', 'text-transform', 'lowercase');
+                map.style.update();
+                t.deepEqual(map.getLayoutProperty('symbol', 'text-transform'), 'lowercase');
+                t.end();
+            });
+        });
+
+        t.test('sets property on parent layer', function (t) {
+            var map = createMap({
+                style: {
+                    "version": 8,
+                    "sources": {
+                        "geojson": {
+                            "type": "geojson",
+                            "data": {
+                                "type": "FeatureCollection",
+                                "features": []
+                            }
+                        }
+                    },
+                    "layers": [{
+                        "id": "symbol",
+                        "type": "symbol",
+                        "source": "geojson",
+                        "layout": {
+                            "text-transform": "uppercase"
+                        }
+                    }, {
+                        "id": "symbol-ref",
+                        "ref": "symbol"
+                    }]
+                }
+            });
+
+            map.on('style.load', function () {
+                map.style.dispatcher.broadcast = function(key, value) {
+                    t.equal(key, 'update layers');
+                    t.deepEqual(value.map(function(layer) { return layer.id; }), ['symbol']);
+                };
+
+                map.setLayoutProperty('symbol-ref', 'text-transform', 'lowercase');
+                map.style.update();
                 t.deepEqual(map.getLayoutProperty('symbol', 'text-transform'), 'lowercase');
                 t.end();
             });
@@ -569,7 +684,7 @@ test('Map', function(t) {
                     "sources": {
                         "drone": {
                             "type": "video",
-                            "urls": ["https://www.mapbox.com/drone/video/drone.mp4", "https://www.mapbox.com/drone/video/drone.webm"],
+                            "urls": [],
                             "coordinates": [
                                 [-122.51596391201019, 37.56238816766053],
                                 [-122.51467645168304, 37.56410183312965],
@@ -603,7 +718,7 @@ test('Map', function(t) {
                     "sources": {
                         "image": {
                             "type": "image",
-                            "url": "https://www.mapbox.com/drone/video/drone.mp4",
+                            "url": "",
                             "coordinates": [
                                 [-122.51596391201019, 37.56238816766053],
                                 [-122.51467645168304, 37.56410183312965],
@@ -629,6 +744,8 @@ test('Map', function(t) {
                 t.end();
             });
         });
+
+        t.end();
     });
 
     t.test('#setPaintProperty', function (t) {
@@ -666,6 +783,8 @@ test('Map', function(t) {
 
             t.end();
         });
+
+        t.end();
     });
 
     t.test('#onError', function (t) {
@@ -686,7 +805,11 @@ test('Map', function(t) {
                 }
             });
         });
+
+        t.end();
     });
+
+    t.end();
 });
 
 function createStyle() {

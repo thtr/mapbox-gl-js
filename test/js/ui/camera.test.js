@@ -1,6 +1,6 @@
 'use strict';
 
-var test = require('prova');
+var test = require('tap').test;
 var Camera = require('../../../js/ui/camera');
 var Evented = require('../../../js/util/evented');
 var Transform = require('../../../js/geo/transform');
@@ -166,6 +166,8 @@ test('camera', function(t) {
             t.ok(!camera.isEasing());
             t.end();
         });
+
+        t.end();
     });
 
     t.test('#setZoom', function(t) {
@@ -206,6 +208,8 @@ test('camera', function(t) {
             t.ok(!camera.isEasing());
             t.end();
         });
+
+        t.end();
     });
 
     t.test('#setBearing', function(t) {
@@ -239,6 +243,8 @@ test('camera', function(t) {
             t.ok(!camera.isEasing());
             t.end();
         });
+
+        t.end();
     });
 
     t.test('#panBy', function(t) {
@@ -439,7 +445,7 @@ test('camera', function(t) {
             var camera = createCamera({ zoom: 1 });
             camera.rotateTo(90, { offset: [200, 0], duration: 0 });
             t.equal(camera.getBearing(), 90);
-            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: 70.3125, lat: 57.32652122521708 }));
+            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: 70.3125, lat: 57.3265212252 }));
             t.end();
         });
 
@@ -455,7 +461,7 @@ test('camera', function(t) {
             var camera = createCamera({ bearing: 180, zoom: 1 });
             camera.rotateTo(90, { offset: [200, 0], duration: 0 });
             t.equal(camera.getBearing(), 90);
-            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: -70.3125, lat: 57.32652122521708 }));
+            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: -70.3125, lat: 57.3265212252 }));
             t.end();
         });
 
@@ -581,6 +587,38 @@ test('camera', function(t) {
             var camera = createCamera({ bearing: 180 });
             camera.easeTo({ center: [100, 0], offset: [100, 0], duration: 0 });
             t.deepEqual(fixedLngLat(camera.getCenter()), { lng: 170.3125, lat: 0 });
+            t.end();
+        });
+
+        t.test('zooms with specified offset', function(t) {
+            var camera = createCamera();
+            camera.easeTo({ zoom: 3.2, offset: [100, 0], duration: 0 });
+            t.equal(camera.getZoom(), 3.2);
+            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: 62.66117668978015, lat: 0 }));
+            t.end();
+        });
+
+        t.test('zooms with specified offset relative to viewport on a rotated camera', function(t) {
+            var camera = createCamera({bearing: 180});
+            camera.easeTo({ zoom: 3.2, offset: [100, 0], duration: 0 });
+            t.equal(camera.getZoom(), 3.2);
+            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: -62.66117668978012, lat: 0 }));
+            t.end();
+        });
+
+        t.test('rotates with specified offset', function(t) {
+            var camera = createCamera();
+            camera.easeTo({ bearing: 90, offset: [100, 0], duration: 0 });
+            t.equal(camera.getBearing(), 90);
+            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: 70.3125, lat: 0.0000141444 }));
+            t.end();
+        });
+
+        t.test('rotates with specified offset relative to viewport on a rotated camera', function(t) {
+            var camera = createCamera({bearing: 180});
+            camera.easeTo({ bearing: 90, offset: [100, 0], duration: 0 });
+            t.equal(camera.getBearing(), 90);
+            t.deepEqual(fixedLngLat(camera.getCenter()), fixedLngLat({ lng: -70.3125, lat: 0.0000141444 }));
             t.end();
         });
 
@@ -813,7 +851,7 @@ test('camera', function(t) {
             var ascended;
 
             camera.on('zoom', function() {
-                if (camera.getZoom() < 1.9) {
+                if (camera.getZoom() < 18) {
                     ascended = true;
                 }
             });
@@ -823,7 +861,7 @@ test('camera', function(t) {
                 t.end();
             });
 
-            camera.flyTo({ center: [100, 0], zoom: 18 });
+            camera.flyTo({ center: [100, 0], zoom: 18, duration: 10 });
         });
 
         t.test('pans eastward across the prime meridian', function(t) {

@@ -4,9 +4,8 @@ module.exports = drawCollisionDebug;
 
 function drawCollisionDebug(painter, source, layer, coords) {
     var gl = painter.gl;
-    var shader = painter.collisionBoxShader;
     gl.enable(gl.STENCIL_TEST);
-    gl.switchShader(shader);
+    var program = painter.useProgram('collisionbox');
 
     for (var i = 0; i < coords.length; i++) {
         var coord = coords[i];
@@ -19,19 +18,17 @@ function drawCollisionDebug(painter, source, layer, coords) {
         if (!bucket.buffers) continue;
         if (elementGroups[0].vertexLength === 0) continue;
 
-        var buffer = bucket.buffers.collisionBoxVertex;
-        buffer.bind(gl);
-        buffer.setAttribPointers(gl, shader, 0);
+        bucket.bindLayoutBuffers('collisionBox', gl);
+        bucket.setAttribPointers('collisionBox', gl, program, elementGroups[0].vertexOffset, layer);
 
-        var posMatrix = painter.calculatePosMatrix(coord, source.maxzoom);
-        gl.setPosMatrix(posMatrix);
+        painter.setPosMatrix(coord.posMatrix);
 
         painter.enableTileClippingMask(coord);
 
-        gl.lineWidth(1);
-        gl.uniform1f(shader.u_scale, Math.pow(2, painter.transform.zoom - tile.coord.z));
-        gl.uniform1f(shader.u_zoom, painter.transform.zoom * 10);
-        gl.uniform1f(shader.u_maxzoom, (tile.coord.z + 1) * 10);
+        painter.lineWidth(1);
+        gl.uniform1f(program.u_scale, Math.pow(2, painter.transform.zoom - tile.coord.z));
+        gl.uniform1f(program.u_zoom, painter.transform.zoom * 10);
+        gl.uniform1f(program.u_maxzoom, (tile.coord.z + 1) * 10);
 
         gl.drawArrays(
             gl.LINES,

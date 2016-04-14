@@ -1,23 +1,32 @@
-[![Build Status](https://circleci.com/gh/mapbox/mapbox-gl-js.svg?style=svg)](https://circleci.com/gh/mapbox/mapbox-gl-js)
+[![Build Status](https://circleci.com/gh/mapbox/mapbox-gl-js.svg?style=svg)](https://circleci.com/gh/mapbox/mapbox-gl-js) [![Coverage Status](https://coveralls.io/repos/github/mapbox/mapbox-gl-js/badge.svg?branch=master)](https://coveralls.io/github/mapbox/mapbox-gl-js?branch=master)
 
 A WebGL JavaScript interactive maps library that can render [Mapbox Vector Tiles](https://www.mapbox.com/blog/vector-tiles/).
 
-## Using mapbox-gl-js
+## Using `mapbox-gl-js`
 
 Include the source via HTML tags:
 
 ```html
-<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.15.0/mapbox-gl.js'></script>
-<link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.15.0/mapbox-gl.css' rel='stylesheet' />
+<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.17.0/mapbox-gl.js'></script>
+<link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.17.0/mapbox-gl.css' rel='stylesheet' />
 ```
-
-For more information, see the [API documentation](https://www.mapbox.com/mapbox-gl-js/api/) and [examples](https://www.mapbox.com/mapbox-gl-js/examples/).
 
 Alternatively, you can `npm install mapbox-gl` and use it as a bundled dependency with browserify.
 
-## [Style Reference](https://www.mapbox.com/mapbox-gl-style-spec/)
+### Documentation
 
-## Developing mapbox-gl-js
+ - [API Documentation](https://www.mapbox.com/mapbox-gl-js/api)
+ - [Style Specification](https://www.mapbox.com/mapbox-gl-style-spec)
+ - [Examples](https://www.mapbox.com/mapbox-gl-js/examples/)
+
+### Related Projects
+
+ - [**`mapbox/mapbox-gl`** central place for discussions about the Mapbox GL ecosystem](https://github.com/mapbox/mapbox-gl)
+ - [**`mapbox/mapbox-gl-native`** compatible renderer written in C++ with bindings for desktop and mobile platforms](https://www.mapbox.com/mapbox-gl-native)
+ - [**`mapbox/awesome-vector-tiles`** directory of vector tile tools](https://github.com/mapbox/awesome-vector-tiles)
+ - [**`Smartrak/mapbox-gl-js-typescript`** typescript definitions](https://github.com/Smartrak/mapbox-gl-js-typescript)
+
+## Developing `mapbox-gl-js`
 
 ### Preparing your Development Environment
 
@@ -65,12 +74,13 @@ npm install
 
 ### Serving the Debug Page
 
-To serve the debug page, run
+Start the debug server
 
 ```bash
-npm start &
-open "http://localhost:9966/debug/?access_token=<INSERT YOUR ACCESS TOKEN>"
+MAPBOX_ACCESS_TOKEN={YOUR MAPBOX ACCESS TOKEN} npm start
 ```
+
+Open the debug page at [http://localhost:9966](http://localhost:9966)
 
 ### Creating a Standalone Build
 
@@ -90,20 +100,13 @@ There are two test suites associated with Mapbox GL JS
  - `npm test` runs quick unit tests
  - `npm run test-suite` runs slower rendering tests from the [mapbox-gl-test-suite](https://github.com/mapbox/mapbox-gl-test-suite) repository
 
-### Running the FPS Benchmark
+### Running Benchmarks
 
-The FPS benchmarking page compares the performance of your local copy of GL JS against previously released versions. Benchmarking configuration is within `bench/fps/site.js`.
-
-To serve the FPS benchmark page:
-
-```bash
-$ npm start &
-$ open "http://localhost:9966/bench/fps/?access_token="`echo $MapboxAccessToken`
-```
+See [`bench/README.md`](https://github.com/mapbox/mapbox-gl-js/blob/master/bench/README.md).
 
 ### Writing Documentation
 
-See [docs/README.md](https://github.com/mapbox/mapbox-gl-js/blob/master/docs/README.md).
+See [`docs/README.md`](https://github.com/mapbox/mapbox-gl-js/blob/master/docs/README.md).
 
 ### Recommended Reading
 
