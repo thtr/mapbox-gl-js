@@ -69,6 +69,8 @@ exports.saveFile = function(path, data, mimetype){
 					}catch(err){ };
 				};
 				blob = new Blob([ data ], {type: type});
+				if(blob.size < 1) return;
+
 				writer.write( blob );
 			});
 		});
