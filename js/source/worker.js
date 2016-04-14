@@ -94,6 +94,7 @@ util.extend(Worker.prototype, {
 
         this.layerFamilies = createLayerFamilies(this.layers);
     },
+
     'load tile': function(params, callback) {
         var source = params.source,
             uid = params.uid;
