@@ -47,7 +47,7 @@ Dispatcher.prototype = {
         this.actor.send(type, data, callback, buffers);
     },
 
-    remove: function() k
+    remove: function() {
         // noop
     }
 };

@@ -29,9 +29,7 @@ function Worker(self) {
 
 util.extend(Worker.prototype, {
     'set option': function(options) {
-		Object.keys(options).forEach(function(key){
-			self[key] = options[key];
-		}, options);
+        Object.assign(self, options);
     },
     'set layers': function(layers) {
         this.layers = {};
