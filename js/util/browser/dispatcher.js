@@ -4,6 +4,7 @@ var Actor = require('../actor');
 var WebWorkify = require('webworkify');
 
 module.exports = Dispatcher;
+
 // this exists in the Window context
 function Dispatcher(length, parent) {
 // window here

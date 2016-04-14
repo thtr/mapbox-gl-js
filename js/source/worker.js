@@ -64,6 +64,7 @@ util.extend(Worker.prototype, {
 
         this.layerFamilies = createLayerFamilies(this.layers);
     },
+
     'update layers': function(layers) {
         var that = this;
         var id;
@@ -102,6 +103,7 @@ util.extend(Worker.prototype, {
 
 
         var tile = this.loading[source][uid] = new WorkerTile(params);
+
 // TODO call out to window and get resource there, then pass it back to getArrayBuffer or similar
 //if('undefined' !== typeof WorkerGlobalScope) throw '#-->'+params.url.replace(/\?.*/,'');
 //console.log('tile.xhr>>',typeof WorkerGlobalScope,this);
