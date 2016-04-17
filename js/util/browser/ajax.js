@@ -57,20 +57,24 @@ exports.cleanup = function(path){
 	});
 };
 exports.saveFile = function(path, data, mimetype){
-	var part = path.match(/^(.*\/)([^\/]+)$/);
+	var blob, type = mimetype || ''
+	, part = path.match(/^(.*\/)([^\/]+)$/);
+	if( /json/i.test(type) ){
+		try{
+			data = JSON.stringify( data );
+		}catch(err){ };
+	};
+	blob = new Blob([ data ], {type: type});
+
+	if(blob.size < 1){
+	// TODO remove or cleanup, this was happening in chrome
+		// this only happens in workers
+		console.warn('##->', blob.size, data.byteLength, mimetype, path);
+		return;
+	};
 	function save(dirEntry){
 		dirEntry.getFile(part[2], {create:true}, function(fileEntry){
 			fileEntry.createWriter(function(writer){
-				var isJSON = /json/i, output, blob, type = mimetype || '';
-
-				if( isJSON.test(type) ){
-					try{
-						data = JSON.stringify( data );
-					}catch(err){ };
-				};
-				blob = new Blob([ data ], {type: type});
-				if(blob.size < 1) return;
-
 				writer.write( blob );
 			});
 		});
@@ -78,7 +82,8 @@ exports.saveFile = function(path, data, mimetype){
 // TODO
 // cordova throws here in workers b/c there's no self.resolveLocalFileSystemURL
 	if(!self.resolveLocalFileSystemURL){
-		postMessage({type:'saveFile', path: path, data:data, mimetype: mimetype}, [data]);
+		// NOTE postMessage REMOVES the data when transferring it to other threads (causing unexpected behavior!)
+		postMessage({type:'saveFile', path: path, data:data, mimetype: type}, [data]);
 		return;
 	};
 // TODO
