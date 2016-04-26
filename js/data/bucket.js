@@ -72,7 +72,7 @@ function Bucket(options) {
     this.minZoom = this.layer.minzoom;
     this.maxZoom = this.layer.maxzoom;
 
-    this.attributes = createAttributes(this);
+    this.paintAttributes = createPaintAttributes(this);
 
     if (options.elementGroups) {
         this.elementGroups = options.elementGroups;
@@ -150,19 +150,19 @@ Bucket.prototype.createArrays = function() {
             var vertexBufferName = this.getBufferName(programName, 'vertex');
 
             var VertexArrayType = new StructArrayType({
-                members: this.attributes[programName].layoutAttributes,
+                members: this.programInterfaces[programName].layoutAttributes,
                 alignment: Buffer.VERTEX_ATTRIBUTE_ALIGNMENT
             });
 
             arrays[vertexBufferName] = new VertexArrayType();
             arrayTypes[vertexBufferName] = VertexArrayType.serialize();
 
-            var layerPaintAttributes = this.attributes[programName].paintAttributes;
+            var layerPaintAttributes = this.paintAttributes[programName];
             for (var layerName in layerPaintAttributes) {
                 var paintVertexBufferName = this.getBufferName(layerName, programName);
 
                 var PaintVertexArrayType = new StructArrayType({
-                    members: layerPaintAttributes[layerName].enabled,
+                    members: layerPaintAttributes[layerName].attributes,
                     alignment: Buffer.VERTEX_ATTRIBUTE_ALIGNMENT
                 });
 
@@ -214,11 +214,11 @@ Bucket.prototype.setAttribPointers = function(programName, gl, program, offset) 
 };
 
 Bucket.prototype.setUniforms = function(gl, programName, program, layer, globalProperties) {
-    var disabledAttributes = this.attributes[programName].paintAttributes[layer.id].disabled;
-    for (var i = 0; i < disabledAttributes.length; i++) {
-        var attribute = disabledAttributes[i];
-        var attributeId = program[attribute.name];
-        gl['uniform' + attribute.components + 'fv'](attributeId, attribute.getValue(layer, globalProperties));
+    var uniforms = this.paintAttributes[programName][layer.id].uniforms;
+    for (var i = 0; i < uniforms.length; i++) {
+        var uniform = uniforms[i];
+        var uniformLocation = program[uniform.name];
+        gl['uniform' + uniform.components + 'fv'](uniformLocation, uniform.getValue(layer, globalProperties));
     }
 };
 
@@ -288,9 +288,10 @@ Bucket.prototype.recalculateStyleLayers = function() {
 
 Bucket.prototype.getProgramMacros = function(programInterface, layer) {
     var macros = [];
-    var enabledAttributes = this.attributes[programInterface].paintAttributes[layer.id].enabled;
-    for (var i = 0; i < enabledAttributes.length; i++) {
-        macros.push('ATTRIBUTE_' + enabledAttributes[i].name.toUpperCase());
+    var attributes = this.paintAttributes[programInterface][layer.id].attributes;
+    for (var i = 0; i < attributes.length; i++) {
+        var attribute = attributes[i];
+        macros.push('ATTRIBUTE_' + (attribute.isFunction ? 'ZOOM_FUNCTION_' : '') + attribute.name.toUpperCase());
     }
     return macros;
 };
@@ -300,11 +301,9 @@ Bucket.prototype.addPaintAttributes = function(interfaceName, globalProperties, 
         var layer = this.childLayers[l];
         var length = this.arrays[this.getBufferName(interfaceName, 'vertex')].length;
         var vertexArray = this.arrays[this.getBufferName(layer.id, interfaceName)];
-        var enabled = this.attributes[interfaceName].paintAttributes[layer.id].enabled;
-        for (var m = 0; m < enabled.length; m++) {
-            var attribute = enabled[m];
-
-            if (attribute.paintProperty === undefined) continue;
+        var attributes = this.paintAttributes[interfaceName][layer.id].attributes;
+        for (var m = 0; m < attributes.length; m++) {
+            var attribute = attributes[m];
 
             var value = attribute.getValue(layer, globalProperties, featureProperties);
             var multiplier = attribute.multiplier || 1;
@@ -336,36 +335,97 @@ function capitalize(string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-function createAttributes(bucket) {
+function createPaintAttributes(bucket) {
     var attributes = {};
     for (var interfaceName in bucket.programInterfaces) {
-        var interfaceAttributes = attributes[interfaceName] = { layoutAttributes: [], paintAttributes: {} };
-        var layerPaintAttributes = interfaceAttributes.paintAttributes;
+        var layerPaintAttributes = attributes[interfaceName] = {};
 
         for (var c = 0; c < bucket.childLayers.length; c++) {
             var childLayer = bucket.childLayers[c];
-            layerPaintAttributes[childLayer.id] = { enabled: [], disabled: [] };
+            layerPaintAttributes[childLayer.id] = { attributes: [], uniforms: [] };
         }
 
         var interface_ = bucket.programInterfaces[interfaceName];
-        for (var i = 0; i < interface_.attributes.length; i++) {
-            var attribute = interface_.attributes[i];
+        if (!interface_.paintAttributes) continue;
+        for (var i = 0; i < interface_.paintAttributes.length; i++) {
+            var attribute = interface_.paintAttributes[i];
 
-            if (attribute.paintProperty === undefined) {
-                interfaceAttributes.layoutAttributes.push(attribute);
-            } else {
-                for (var j = 0; j < bucket.childLayers.length; j++) {
-                    var layer = bucket.childLayers[j];
-                    var paintAttributes = layerPaintAttributes[layer.id];
+            for (var j = 0; j < bucket.childLayers.length; j++) {
+                var layer = bucket.childLayers[j];
+                var paintAttributes = layerPaintAttributes[layer.id];
 
-                    if (layer.isPaintValueFeatureConstant(attribute.paintProperty)) {
-                        paintAttributes.disabled.push(attribute);
-                    } else {
-                        paintAttributes.enabled.push(attribute);
+                if (layer.isPaintValueFeatureConstant(attribute.paintProperty)) {
+                    paintAttributes.uniforms.push(attribute);
+                } else if (layer.isPaintValueZoomConstant(attribute.paintProperty)) {
+                    paintAttributes.attributes.push(attribute);
+                } else {
+
+                    var zoomLevels = layer.getPaintValueStopZoomLevels(attribute.paintProperty);
+
+                    // Pick the index of the first offset to add to the buffers.
+                    // Find the four closest stops, ideally with two on each side of the zoom level.
+                    var numStops = 0;
+                    while (numStops < zoomLevels.length && zoomLevels[numStops] < bucket.zoom) numStops++;
+                    var stopOffset = Math.max(0, Math.min(zoomLevels.length - 4, numStops - 2));
+
+                    var fourZoomLevels = [];
+                    for (var s = 0; s < 4; s++) {
+                        fourZoomLevels.push(zoomLevels[Math.min(stopOffset + s, zoomLevels.length - 1)]);
                     }
+
+                    var components = attribute.components;
+                    if (components === 1) {
+                        paintAttributes.attributes.push(util.extend({}, attribute, {
+                            getValue: createFunctionGetValue(attribute, fourZoomLevels),
+                            isFunction: true,
+                            components: components * 4
+                        }));
+                    } else {
+                        for (var k = 0; k < 4; k++) {
+                            paintAttributes.attributes.push(util.extend({}, attribute, {
+                                getValue: createFunctionGetValue(attribute, [fourZoomLevels[k]]),
+                                isFunction: true,
+                                name: attribute.name + k
+                            }));
+                        }
+                    }
+
+                    paintAttributes.uniforms.push(util.extend({}, attribute, {
+                        name: 'u_' + attribute.name.slice(2) + '_t',
+                        getValue: createGetUniform(attribute, stopOffset),
+                        components: 1
+                    }));
                 }
             }
         }
     }
     return attributes;
+}
+
+function createFunctionGetValue(attribute, stopZoomLevels) {
+    return function(layer, globalProperties, featureProperties) {
+        if (stopZoomLevels.length === 1) {
+            // return one multi-component value like color0
+            return attribute.getValue(layer, util.extend({}, globalProperties, { zoom: stopZoomLevels[0] }), featureProperties);
+        } else {
+            // pack multiple single-component values into a four component attribute
+            var values = [];
+            for (var z = 0; z < stopZoomLevels.length; z++) {
+                var stopZoomLevel = stopZoomLevels[z];
+                values.push(attribute.getValue(layer, util.extend({}, globalProperties, { zoom: stopZoomLevel }), featureProperties)[0]);
+            }
+            return values;
+        }
+    };
+}
+
+function createGetUniform(attribute, stopOffset) {
+    return function(layer, globalProperties) {
+        // stopInterp indicates which stops need to be interpolated.
+        // If stopInterp is 3.5 then interpolate half way between stops 3 and 4.
+        var stopInterp = layer.getPaintInterpolationT(attribute.paintProperty, globalProperties.zoom);
+        // We can only store four stop values in the buffers. stopOffset is the number of stops that come
+        // before the stops that were added to the buffers.
+        return [Math.max(0, Math.min(4, stopInterp - stopOffset))];
+    };
 }
